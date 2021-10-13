@@ -4,3 +4,11 @@
 [submodule "imgui"]
 	path = imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "onnx"]
+	path = onnx
+	url = https://github.com/onnx/onnx.git
+	branch = rel-1.10.2
+[submodule "protobuf"]
+	path = protobuf
+	url = https://github.com/protocolbuffers/protobuf.git
+	branch = 4.0.x

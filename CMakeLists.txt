@@ -1,7 +1,20 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(fractal)
+cmake_policy(SET CMP0091 NEW)
 
+project(receptive_field)
+
+add_definitions(-Dprotobuf_BUILD_TESTS=OFF)
+add_definitions(-DONNX_ML=1)
+
+set(BUILD_GMOCK OFF)
+set(INSTALL_GTEST OFF)
+set(ONNX_BUILD_TESTS OFF)
+#set(ONNX_USE_LITE_PROTO ON)
+#set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${CMAKE_BINARY_DIR}/protobuf/cmake/protoc.exe)
+
+add_subdirectory(protobuf/cmake)
+add_subdirectory(onnx)
 add_subdirectory(glfw)
 
 if(WIN32)
@@ -30,10 +43,15 @@ add_library(imgui
 	glfw/deps/glad_gl.c)
 
 include_directories(
+	onnx
+	${CMAKE_BINARY_DIR}/onnx
+	protobuf/src
 	imgui
 	imgui/backends
 	imgui/misc/cpp
 	glfw/include
 	glfw/deps)
 
-add_subdirectory(geometry_fractal)
+add_subdirectory(receptive_field_view)
+
+message(Protobuf_PROTOC_EXECUTABLE=${Protobuf_PROTOC_EXECUTABLE})

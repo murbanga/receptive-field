@@ -11,9 +11,9 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_stdlib.h"
 
-#include "fractal.h"
+#include "graph.h"
 
-static Fractal fractal;
+//static Fractal fractal;
 
 enum class OperatorMode
 {
@@ -59,14 +59,14 @@ void unproj(double x, double y, double &objx, double &objy)
 	gluUnProject(x, viewport[3] - y, 0, model, proj, viewport, &objx, &objy, &objz);
 }
 
-void update_va(GLuint arr, GLuint buf, const Point *points, size_t npoints)
+/*void update_va(GLuint arr, GLuint buf, const Point *points, size_t npoints)
 {
 	glBindVertexArray(arr);
 	glBindBuffer(GL_ARRAY_BUFFER, buf);
 	glBufferData(GL_ARRAY_BUFFER, npoints*2*sizeof(float), points, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
-}
+}*/
 
 void key(GLFWwindow *window, int key, int scancode, int action, int flags)
 {}
@@ -79,7 +79,7 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 	switch (button) {
 	case GLFW_MOUSE_BUTTON_LEFT:
 		if (state == GLFW_PRESS) {
-			if (flags & GLFW_MOD_CONTROL)
+			//if (flags & GLFW_MOD_CONTROL)
 			{
 				drag_mode = DragMode::Panning;
 				double x, y;
@@ -90,7 +90,7 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 				drag_start_modely = modely;
 				//drag_iterations = 0;
 			}
-			else
+			/*else
 			{
 				double x, y;
 				glfwGetCursorPos(window, &x, &y);
@@ -115,10 +115,10 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 						fractal.model.push_back(mouse);
 					}
 				}
-			}
+			}*/
 		}
 		else if (state == GLFW_RELEASE) {
-			if (drag_mode == DragMode::MovingObject)
+			/*if (drag_mode == DragMode::MovingObject)
 			{
 				delete[] fractal.current;
 				fractal.current = nullptr;
@@ -129,7 +129,7 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 					++fractal;
 				}
 				update_va(current_array, current_buf, fractal.current, fractal.current_size);
-			}
+			}*/
 			drag_mode = DragMode::Disabled;
 		}
 		break;
@@ -137,7 +137,7 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 	case GLFW_MOUSE_BUTTON_RIGHT:
 		if (state == GLFW_PRESS)
 		{
-			double x, y;
+			/*double x, y;
 			glfwGetCursorPos(window, &x, &y);
 			double ptx, pty;
 			unproj(x, y, ptx, pty);
@@ -147,7 +147,7 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 				operator_mode == OperatorMode::Constructing)
 			{
 				fractal.model.erase(fractal.model.begin() + i);
-			}
+			}*/
 		}
 		break;
 	}
@@ -188,10 +188,13 @@ void motion(GLFWwindow *window, double x, double y)
 		break;
 	}
 	case DragMode::MovingObject:
-		fractal.model[moving_model_index].x = static_cast<float>(drag_start_modelx + endx - startx);
-		fractal.model[moving_model_index].y = static_cast<float>(drag_start_modely + endy - starty);
+		//fractal.model[moving_model_index].x = static_cast<float>(drag_start_modelx + endx - startx);
+		//fractal.model[moving_model_index].y = static_cast<float>(drag_start_modely + endy - starty);
 		break;
 	}
+}
+void draw_model()
+{
 }
 
 void display(GLFWwindow *window)
@@ -263,40 +266,8 @@ void display(GLFWwindow *window)
 
 	glPushMatrix();
 	glTranslatef(0.f, 0.f, 1.f);
-	
-	glColor3f(1, 1, 1);
-	glBegin(GL_LINE_STRIP);
-	for (auto &pt : fractal.model)
-	{
-		glVertex2f(pt.x, pt.y);
-	}
-	glEnd();
 
-	glPointSize(4.0);
-	glBegin(GL_POINTS);
-	for(size_t i = 0; i < fractal.model.size(); ++i)
-	{
-		if (distance(fractal.model[i], mousex, mousey) < point_selection_max_distance_px * pixel_size)
-			glColor3f(1, 0, 0);
-		else
-		{
-			if (i == 0)
-				glColor3f(0.5, 1, 0.5);
-			else
-				glColor3f(1, 1, 1);
-		}
-		glVertex2f(fractal.model[i].x, fractal.model[i].y);
-	}
-	glEnd();
-
-	glColor3f(1, 1, 1);
-	/*glBegin(GL_LINE_STRIP);
-	for (auto &pt : fractal.current)
-	{
-		glVertex2f(pt.x, pt.y);
-	}
-	glEnd();*/
-	glDrawArrays(GL_LINE_STRIP, 0, fractal.current_size);
+	draw_model();
 
 	glPopMatrix();
 }
@@ -314,21 +285,21 @@ void draw_ui()
 		return;
 	}
 
-	if (Button("new"))
-	{
-		fractal.clear();
-		operator_mode = OperatorMode::Constructing;
-	}
-	SameLine();
-	if (Button("next") && fractal.model.size() > 2)
-	{
-		operator_mode = OperatorMode::Running;
-		++fractal;
-		update_va(current_array, current_buf, fractal.current, fractal.current_size);
-	}
-	Text("model %llu points", fractal.model.size());
-	Text("actual %llu points", fractal.current_size);
-	End();
+	//if (Button("new"))
+	//{
+	//	fractal.clear();
+	//	operator_mode = OperatorMode::Constructing;
+	//}
+	//SameLine();
+	//if (Button("next") && fractal.model.size() > 2)
+	//{
+	//	operator_mode = OperatorMode::Running;
+	//	++fractal;
+	//	update_va(current_array, current_buf, fractal.current, fractal.current_size);
+	//}
+	//Text("model %llu points", fractal.model.size());
+	//Text("actual %llu points", fractal.current_size);
+	//End();
 }
 
 int main(int argc, char **argv)
@@ -365,26 +336,10 @@ int main(int argc, char **argv)
 
 	io.FontDefault = io.Fonts->AddFontDefault();
 
+	auto graph = load("C:/temp/squeezenet1.0-3.onnx");
+
 	glGenVertexArrays(1, &current_array);
 	glGenBuffers(1, &current_buf);
-
-#if 0
-	fractal.model = {
-		{ -14.8888893, -7.47222233 },
-		{ -1.05555558, -7.47222233 },
-		{3.13888907, 8.13888836 },
-		{1.11111116, -7.55555534 },
-		{ 16.5000000, -6.50000000 },
-		{ 17.2222233, -5.38888884 },
-		{ 20.8055553, -4.94444418 } };
-
-	for (int i = 0; i < 9; ++i)
-	{
-		++fractal;
-	}
-	operator_mode = OperatorMode::Running;
-	update_va(current_array, current_buf, fractal.current, fractal.current_size);
-#endif
 
 	while (!glfwWindowShouldClose(window))
 	{
