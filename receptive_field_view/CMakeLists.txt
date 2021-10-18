@@ -1,6 +1,6 @@
 
 add_executable(receptive_field_view
-	main.cpp graph.h graph.cpp)
+	main.cpp graph.h graph.cpp graph_view.h graph_view.cpp)
 
 add_dependencies(receptive_field_view onnx)
 

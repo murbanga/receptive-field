@@ -12,8 +12,7 @@
 #include "imgui_stdlib.h"
 
 #include "graph.h"
-
-//static Fractal fractal;
+#include "graph_view.h"
 
 enum class OperatorMode
 {
@@ -197,7 +196,7 @@ void draw_model()
 {
 }
 
-void display(GLFWwindow *window)
+void display(GLFWwindow *window, GraphView *view)
 {
 	double x, y;
 	glfwGetCursorPos(window, &x, &y);
@@ -267,7 +266,7 @@ void display(GLFWwindow *window)
 	glPushMatrix();
 	glTranslatef(0.f, 0.f, 1.f);
 
-	draw_model();
+	view->draw();
 
 	glPopMatrix();
 }
@@ -280,11 +279,13 @@ void glfw_error_callback(int error, const char *description)
 void draw_ui()
 {
 	using namespace ImGui;
-	if (!Begin("fractal"))
+	if (!Begin("settings"))
 	{
 		return;
 	}
 
+	Button("reset");
+	End();
 	//if (Button("new"))
 	//{
 	//	fractal.clear();
@@ -337,6 +338,7 @@ int main(int argc, char **argv)
 	io.FontDefault = io.Fonts->AddFontDefault();
 
 	auto graph = load("C:/temp/squeezenet1.0-3.onnx");
+	GraphView graph_view(&graph);
 
 	glGenVertexArrays(1, &current_array);
 	glGenBuffers(1, &current_buf);
@@ -352,7 +354,7 @@ int main(int argc, char **argv)
 
 		ImGui::Render();
 
-		display(window);
+		display(window, &graph_view);
 
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
