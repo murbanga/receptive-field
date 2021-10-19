@@ -30,7 +30,7 @@ enum class DragMode
 static const int point_selection_max_distance_px = 4;
 
 static OperatorMode operator_mode;
-static double zoom = 2;
+static double zoom = 1;
 static double modelx = 0;
 static double modely = 0;
 static double last_pixel_size = -1;
@@ -207,8 +207,8 @@ void display(GLFWwindow *window, GraphView *view)
 	int height;
 	glfwGetFramebufferSize(window, &width, &height);
 
-	double model_width = 10;
-	double model_height = 10;
+	double model_width = view->width();
+	double model_height = view->height();
 	double model_ar = model_width / model_height;
 	double ar = double(width) / double(height);
 
@@ -245,6 +245,7 @@ void display(GLFWwindow *window, GraphView *view)
 	glClearColor(0.1f, 0.1f, 0.1f, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+#if 0
 	const float gridsize = 20;
 	glColor3f(0.3f, 0.3f, 0.3f);
 	glBegin(GL_LINES);
@@ -262,6 +263,7 @@ void display(GLFWwindow *window, GraphView *view)
 	glVertex3f(0, -gridsize, 0);
 	glVertex3f(0, gridsize, 0);
 	glEnd();
+#endif
 
 	glPushMatrix();
 	glTranslatef(0.f, 0.f, 1.f);
@@ -276,7 +278,7 @@ void glfw_error_callback(int error, const char *description)
 	fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-void draw_ui()
+void draw_ui(GraphView *view)
 {
 	using namespace ImGui;
 	if (!Begin("settings"))
@@ -350,7 +352,7 @@ int main(int argc, char **argv)
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		draw_ui();
+		draw_ui(&graph_view);
 
 		ImGui::Render();
 

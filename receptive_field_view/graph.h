@@ -5,8 +5,24 @@
 #include <functional>
 #include <set>
 
+enum class OpType
+{
+	Undefined,
+	Conv,
+	Relu,
+	MaxPool,
+	Concat,
+	Dropout,
+	Constant,
+	GlobalAveragePool,
+	Flatten,
+	Softmax,
+	Reshape,
+};
+
 struct Node
 {
+	OpType op_type;
 	std::map < std::string, std::variant<int64_t, std::vector<int64_t>, std::string>> attrs;
 };
 

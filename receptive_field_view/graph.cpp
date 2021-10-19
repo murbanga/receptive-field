@@ -17,6 +17,33 @@ bool operator==(const Tensor &a, const Tensor &b)
 	return a.n == b.n && a.channel == b.channel && a.width == b.width && a.height == b.height;
 }
 
+OpType str_to_op_type(const string &name)
+{
+	if (name == "Conv")
+		return OpType::Conv;
+	if (name == "Relu")
+		return OpType::Relu;
+	if (name == "MaxPool")
+		return OpType::MaxPool;
+	if (name == "Concat")
+		return OpType::Concat;
+	if (name == "Dropout")
+		return OpType::Dropout;
+	if (name == "Constant")
+		return OpType::Constant;
+	if (name == "GlobalAveragePool")
+		return OpType::GlobalAveragePool;
+	if (name == "Flatten")
+		return OpType::Flatten;
+	if (name == "Softmax")
+		return OpType::Softmax;
+	if (name == "Reshape")
+		return OpType::Reshape;
+
+	assert(false);
+	return OpType::Undefined;
+}
+
 Tensor value_info(const onnx::ValueInfoProto proto)
 {
 	auto shape = proto.type().tensor_type().shape();
@@ -112,6 +139,8 @@ Graph load(const char *filename)
 	{
 		std::string name = n.output(0);
 		Node node;
+
+		node.op_type = str_to_op_type(n.op_type());
 
 		for (auto &a : n.attribute())
 		{
