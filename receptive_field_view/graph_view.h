@@ -1,7 +1,7 @@
 #pragma once
 #include <glad/gl.h>
 
-struct Graph;
+class Graph;
 
 struct Row
 {
@@ -37,6 +37,7 @@ class GraphView
 	GLsizei array_size;
 
 	std::vector<Point> projection_view(const std::vector<std::vector<Row>> &proj) const;
+	void update_layout();
 public:
 	GraphView(Graph *g);
 	~GraphView();
@@ -44,4 +45,10 @@ public:
 	float width() const { return graph_width; }
 	float height() const { return graph_height; }
 	void draw();
+
+	float get_cell_width() const { return cell_width; }
+	float get_node_width_margin() const { return node_width_margin; }
+	float get_node_height_margin() const { return node_height_margin; }
+
+	void set_layout(float cell_width, float node_width_margin, float node_height_margin);
 };

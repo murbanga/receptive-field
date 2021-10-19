@@ -281,28 +281,29 @@ void glfw_error_callback(int error, const char *description)
 void draw_ui(GraphView *view)
 {
 	using namespace ImGui;
-	if (!Begin("settings"))
+	if (Begin("settings"))
 	{
-		return;
+
+		Button("reset");
+		Separator();
+		Text("Layout");
+
+		float cw = view->get_cell_width();
+		float nwm = view->get_node_width_margin();
+		float nhm = view->get_node_height_margin();
+		bool is_update_layout = false;
+
+		is_update_layout |= SliderFloat("Cell width", &cw, 0.001f, 100.0f);
+		is_update_layout |= SliderFloat("Node width margin", &nwm, 0.001f, 100.0f);
+		is_update_layout |= SliderFloat("Node height margin", &nhm, 0.001f, 100.0f);
+
+		if (is_update_layout)
+		{
+			view->set_layout(cw, nwm, nhm);
+		}
 	}
 
-	Button("reset");
 	End();
-	//if (Button("new"))
-	//{
-	//	fractal.clear();
-	//	operator_mode = OperatorMode::Constructing;
-	//}
-	//SameLine();
-	//if (Button("next") && fractal.model.size() > 2)
-	//{
-	//	operator_mode = OperatorMode::Running;
-	//	++fractal;
-	//	update_va(current_array, current_buf, fractal.current, fractal.current_size);
-	//}
-	//Text("model %llu points", fractal.model.size());
-	//Text("actual %llu points", fractal.current_size);
-	//End();
 }
 
 int main(int argc, char **argv)
@@ -339,7 +340,7 @@ int main(int argc, char **argv)
 
 	io.FontDefault = io.Fonts->AddFontDefault();
 
-	auto graph = load("C:/temp/squeezenet1.0-3.onnx");
+	auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
 	GraphView graph_view(&graph);
 
 	glGenVertexArrays(1, &current_array);

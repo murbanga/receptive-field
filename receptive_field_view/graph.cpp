@@ -67,7 +67,7 @@ Tensor value_info(const onnx::ValueInfoProto proto)
 	return tensor;
 }
 
-Graph load(const char *filename)
+Graph Graph::load(const char *filename)
 {
 	ifstream file{ filename, ios::in | ios::binary };
 	onnx::ModelProto model;
@@ -177,7 +177,7 @@ Graph load(const char *filename)
 	return g;
 }
 
-int Graph::walk_forward(const string &beg, std::function<int(const Graph &g, const set<string> &names, int level)> f)
+int Graph::walk_forward(const string &beg, std::function<int(const Graph &g, const set<string> &names, int level)> f) const
 {
 	assert(forw.find(beg) != forw.end());
 
@@ -206,4 +206,38 @@ int Graph::walk_forward(const string &beg, std::function<int(const Graph &g, con
 	}
 
 	return 0;
+}
+
+vector<Field> Graph::receptive_field(const string &node) const
+{	
+	switch (nodes.at(node).op_type)
+	{
+	case OpType::Relu:
+		assert(back.at(node).size() == 1);
+		return identity_field(back.at(node)[0], node);
+	case OpType::Conv:
+	case OpType::MaxPool:
+		assert(back.at(node).size() == 1);
+		return conv_field(back.at(node)[0], node);
+	case OpType::Concat:
+		return concat_field(back.at(node), node);
+	default:
+		assert(false);
+		return {};
+	}
+}
+
+std::vector<Field> Graph::identity_field(const std::string &input, const std::string &output) const
+{
+	return std::vector<Field>();
+}
+
+std::vector<Field> Graph::conv_field(const std::string &input, const std::string &output) const
+{
+	return std::vector<Field>();
+}
+
+std::vector<Field> Graph::concat_field(const std::vector<std::string> &inputs, const std::string &output) const
+{
+	return std::vector<Field>();
 }

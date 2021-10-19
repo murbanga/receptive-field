@@ -19,6 +19,11 @@ GraphView::GraphView(Graph *g) :g(g)
 	glGenVertexArrays(1, &array_projection);
 	glGenBuffers(1, &buf_projection);
 
+	update_layout();
+}
+
+void GraphView::update_layout()
+{
 	float max_width = 0;
 	float max_level = 0;
 
@@ -124,4 +129,13 @@ void GraphView::draw()
 {
 	glColor3f(1, 1, 1);
 	glDrawArrays(GL_LINES, 0, array_size);
+}
+
+void GraphView::set_layout(float cell_width, float node_width_margin, float node_height_margin)
+{
+	this->cell_width = cell_width;
+	this->node_width_margin = node_width_margin;
+	this->node_height_margin = node_height_margin;
+
+	update_layout();
 }
