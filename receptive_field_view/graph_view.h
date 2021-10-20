@@ -3,43 +3,56 @@
 
 class Graph;
 
-struct Row
-{
-	int n;
-	std::string name;
-};
-
 struct Point
 {
 	float x;
 	float y;
 };
 
+struct Point3f
+{
+	float x;
+	float y;
+	float z;
+};
+
+struct Row
+{
+	int n;
+	std::string name;
+	std::vector<Field> fields;
+};
+
 class GraphView
 {
 	Graph *g;
-
+	std::string start_node;
 	float cell_width = 0.1f;
 	float node_width_margin = 1.0f;
 	float node_height_margin = 3.0f;
 
-	enum class Direction
-	{
-		ByRows = 0,
-		ByColumns = 1,
-	} direction = Direction::ByRows;
+	Direction direction = Direction::ByRows;
 
 	float graph_width;
 	float graph_height;
+	int graph_depth;
 	
-	GLuint array_projection;
-	GLuint buf_projection;
-	GLsizei array_size;
+	GLuint array_tensors;
+	GLuint buf_tensors;
+	GLsizei size_tensors;
+	std::map<std::string, Point> base_points;
 
-	std::vector<Point> projection_view(const std::vector<std::vector<Row>> &proj) const;
+	std::vector<GLuint> array_fields;
+	std::vector<GLuint> buf_fields;
+	GLsizei size_fields;
+
+	std::tuple<std::vector<Point>,std::map<std::string, Point>> render_projection(const std::vector<std::vector<Row>> &proj) const;
+	float width_offset(const std::vector<Row> &level) const;
+	std::vector<Point3f> GraphView::render_field(const Field &field, const Point &from, const Point &to, int interp_steps, float dz, float startz) const;
+
 	void update_layout();
 public:
-	GraphView(Graph *g);
+	GraphView(Graph *g, const std::string &start_node);
 	~GraphView();
 
 	float width() const { return graph_width; }

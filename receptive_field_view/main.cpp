@@ -293,9 +293,9 @@ void draw_ui(GraphView *view)
 		float nhm = view->get_node_height_margin();
 		bool is_update_layout = false;
 
-		is_update_layout |= SliderFloat("Cell width", &cw, 0.001f, 100.0f);
-		is_update_layout |= SliderFloat("Node width margin", &nwm, 0.001f, 100.0f);
-		is_update_layout |= SliderFloat("Node height margin", &nhm, 0.001f, 100.0f);
+		is_update_layout |= SliderFloat("Cell width", &cw, 0.001f, 10.0f);
+		is_update_layout |= SliderFloat("Node width margin", &nwm, 0.001f, 10.0f);
+		is_update_layout |= SliderFloat("Node height margin", &nhm, 0.001f, 10.0f);
 
 		if (is_update_layout)
 		{
@@ -325,7 +325,6 @@ int main(int argc, char **argv)
 
 	gladLoadGL(glfwGetProcAddress);
 
-	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO &io = ImGui::GetIO();
@@ -341,7 +340,7 @@ int main(int argc, char **argv)
 	io.FontDefault = io.Fonts->AddFontDefault();
 
 	auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
-	GraphView graph_view(&graph);
+	GraphView graph_view(&graph, "data_0");
 
 	glGenVertexArrays(1, &current_array);
 	glGenBuffers(1, &current_buf);

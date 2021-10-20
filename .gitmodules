@@ -12,3 +12,6 @@
 	path = protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
 	branch = 4.0.x
+[submodule "bazier"]
+	path = bazier
+	url = https://github.com/oysteinmyrmo/bezier.git

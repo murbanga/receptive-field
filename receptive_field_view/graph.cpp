@@ -140,6 +140,7 @@ Graph Graph::load(const char *filename)
 		std::string name = n.output(0);
 		Node node;
 
+		node.name = name;
 		node.op_type = str_to_op_type(n.op_type());
 
 		for (auto &a : n.attribute())
@@ -163,14 +164,24 @@ Graph Graph::load(const char *filename)
 			}
 		}
 
-		g.nodes.emplace(name, node);
-
 		for (auto &input : n.input())
 		{
+			node.inputs.push_back(input);
+
 			if (g.forw.find(input) != g.forw.end())
 				g.forw.at(input).push_back(name);
 			else
 				g.forw.emplace(input, vector<string>{ name });
+		}
+
+		g.nodes.emplace(name, node);
+	}
+
+	for (auto &begin : g.forw)
+	{
+		for (auto &end : begin.second)
+		{
+			g.back[end].push_back(begin.first);
 		}
 	}
 
@@ -208,36 +219,128 @@ int Graph::walk_forward(const string &beg, std::function<int(const Graph &g, con
 	return 0;
 }
 
-vector<Field> Graph::receptive_field(const string &node) const
-{	
-	switch (nodes.at(node).op_type)
+vector<Field> Graph::receptive_field(const string &name, Direction dir) const
+{
+	if (nodes.find(name) == nodes.end())
+	{
+		assert(tensors.find(name) != tensors.end());
+		return {};
+	}
+
+	const auto &node = nodes.at(name);
+	
+	switch (node.op_type)
 	{
 	case OpType::Relu:
-		assert(back.at(node).size() == 1);
-		return identity_field(back.at(node)[0], node);
+		assert(node.inputs.size() == 1);
+		return identity_field(node, dir);
+
 	case OpType::Conv:
+		assert(node.inputs.size() == 3);
+		return conv_field(node, dir);
+
 	case OpType::MaxPool:
-		assert(back.at(node).size() == 1);
-		return conv_field(back.at(node)[0], node);
+		assert(node.inputs.size() == 1);
+		return conv_field(node, dir);
+
 	case OpType::Concat:
-		return concat_field(back.at(node), node);
+		return concat_field(node, dir);
+
 	default:
-		assert(false);
+		//assert(false);
+		printf("receptive field for op '%d' not implemented\n", (int)node.op_type);
 		return {};
 	}
 }
 
-std::vector<Field> Graph::identity_field(const std::string &input, const std::string &output) const
+std::vector<Field> Graph::identity_field(const Node &node, Direction dir) const
 {
 	return std::vector<Field>();
 }
 
-std::vector<Field> Graph::conv_field(const std::string &input, const std::string &output) const
+std::vector<Field> Graph::conv_field(const Node &node, Direction direction) const
 {
-	return std::vector<Field>();
+	int dir = (int)direction;
+	auto &out_tensor = tensors.at(node.name);
+	auto &in_tensor = tensors.at(node.inputs[0]);
+	
+	int in_length;
+	int out_length;
+	switch (direction)
+	{
+	case Direction::ByRows:
+		in_length = in_tensor.height;
+		out_length = out_tensor.height;
+		break;
+	case Direction::ByColumns:
+		in_length = in_tensor.width;
+		out_length = out_tensor.width;
+		break;
+	default:
+		assert(false);
+		break;
+	}
+
+	int stride = 1;
+	int dilation = 1;
+	int kernel = 0;
+	int pad_beg = 0;
+	int pad_end = 0;
+
+	auto end = node.attrs.end();
+
+	auto it_strides = node.attrs.find("strides");
+	if (it_strides != end)
+	{
+		auto &attr_strides = std::get<std::vector<int64_t>>(it_strides->second);
+		stride = (int)attr_strides[dir];
+	}
+
+	auto it_dilations = node.attrs.find("dilations");
+	if (it_dilations != end)
+	{
+		auto &attr_dilations = std::get<std::vector<int64_t>>(it_dilations->second);
+		dilation = (int)attr_dilations[dir];
+	}
+
+	auto it_kernel = node.attrs.find("kernel_shape");
+	if (it_kernel != end)
+	{
+		auto &attr_kernel = std::get<std::vector<int64_t>>(it_kernel->second);
+		kernel = (int)attr_kernel[dir];
+	}
+	else
+	{
+		assert(false);
+	}
+
+	auto it_pads = node.attrs.find("pads");
+	if (it_pads != end)
+	{
+		auto &attr_pads = std::get<std::vector<int64_t>>(it_pads->second);
+		pad_beg = (int)attr_pads[2 * dir + 0];
+		pad_end = (int)attr_pads[2 * dir + 1];
+	}
+
+	Field field;
+	field.input = node.inputs[0];
+	field.output = node.name;
+	field.field.reserve(out_length);
+
+	for (int i = -pad_beg, j = 0; i < in_length + pad_end; i += stride, ++j)
+	{
+		FromTo ray;
+		ray.from_input = i;
+		ray.to_input = min(i + kernel * dilation, in_length + pad_end);
+		ray.from_output = j;
+		ray.to_output = j + 1;
+		field.field.push_back(ray);
+	}
+
+	return { field };
 }
 
-std::vector<Field> Graph::concat_field(const std::vector<std::string> &inputs, const std::string &output) const
+std::vector<Field> Graph::concat_field(const Node &node, Direction dir) const
 {
 	return std::vector<Field>();
 }
