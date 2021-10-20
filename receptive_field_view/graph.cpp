@@ -255,15 +255,48 @@ vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 
 std::vector<Field> Graph::identity_field(const Node &node, Direction dir) const
 {
-	return std::vector<Field>();
+	auto &in_tensor = tensors.at(node.inputs[0]);
+	auto &out_tensor = tensors.at(node.name);
+
+	assert(in_tensor.width == out_tensor.width);
+	assert(out_tensor.height == out_tensor.height);
+
+	int in_length;
+	int out_length;
+	switch (dir)
+	{
+	case Direction::ByRows:
+		in_length = in_tensor.height;
+		out_length = out_tensor.height;
+		break;
+	case Direction::ByColumns:
+		in_length = in_tensor.width;
+		out_length = out_tensor.width;
+		break;
+	default:
+		assert(false);
+		break;
+	}
+
+	Field field;
+	field.input = node.inputs[0];
+	field.output = node.name;
+	field.field.reserve(in_length);
+
+	for (int i = 0; i < in_length; ++i)
+	{
+		field.field.push_back({ i,i + 1, i, i + 1 });
+	}
+
+	return {field};
 }
 
 std::vector<Field> Graph::conv_field(const Node &node, Direction direction) const
 {
 	int dir = (int)direction;
-	auto &out_tensor = tensors.at(node.name);
 	auto &in_tensor = tensors.at(node.inputs[0]);
-	
+	auto &out_tensor = tensors.at(node.name);
+
 	int in_length;
 	int out_length;
 	switch (direction)
@@ -327,7 +360,7 @@ std::vector<Field> Graph::conv_field(const Node &node, Direction direction) cons
 	field.output = node.name;
 	field.field.reserve(out_length);
 
-	for (int i = -pad_beg, j = 0; i < in_length + pad_end; i += stride, ++j)
+	for (int i = -pad_beg, j = 0; i < in_length + pad_end && j < out_length; i += stride, ++j)
 	{
 		FromTo ray;
 		ray.from_input = i;

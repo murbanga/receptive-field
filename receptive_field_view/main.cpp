@@ -42,8 +42,8 @@ static double drag_start_modelx;
 static double drag_start_modely;
 static int moving_model_index = -1;
 
-static GLuint current_array;
-static GLuint current_buf;
+//static GLuint current_array;
+//static GLuint current_buf;
 
 void unproj(double x, double y, double &objx, double &objy)
 {
@@ -58,15 +58,6 @@ void unproj(double x, double y, double &objx, double &objy)
 	gluUnProject(x, viewport[3] - y, 0, model, proj, viewport, &objx, &objy, &objz);
 }
 
-/*void update_va(GLuint arr, GLuint buf, const Point *points, size_t npoints)
-{
-	glBindVertexArray(arr);
-	glBindBuffer(GL_ARRAY_BUFFER, buf);
-	glBufferData(GL_ARRAY_BUFFER, npoints*2*sizeof(float), points, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-}*/
-
 void key(GLFWwindow *window, int key, int scancode, int action, int flags)
 {}
 
@@ -75,60 +66,33 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 	ImGuiIO &io = ImGui::GetIO();
 	if (io.WantCaptureMouse)return;
 
+	GraphView *view = reinterpret_cast<GraphView *>(glfwGetWindowUserPointer(window));
+
 	switch (button) {
 	case GLFW_MOUSE_BUTTON_LEFT:
-		if (state == GLFW_PRESS) {
-			//if (flags & GLFW_MOD_CONTROL)
+		if (state == GLFW_PRESS)
+		{
+			drag_mode = DragMode::Panning;
+			double x, y;
+			glfwGetCursorPos(window, &x, &y);
+			drag_startx = x;
+			drag_starty = y;
+			drag_start_modelx = modelx;
+			drag_start_modely = modely;
+		}		
+		else if (state == GLFW_RELEASE)
+		{
+			double x, y;
+			glfwGetCursorPos(window, &x, &y);
+			if (x == drag_startx && y == drag_starty)
 			{
-				drag_mode = DragMode::Panning;
-				double x, y;
-				glfwGetCursorPos(window, &x, &y);
-				drag_startx = x;
-				drag_starty = y;
-				drag_start_modelx = modelx;
-				drag_start_modely = modely;
-				//drag_iterations = 0;
-			}
-			/*else
-			{
-				double x, y;
-				glfwGetCursorPos(window, &x, &y);
 				double ptx, pty;
 				unproj(x, y, ptx, pty);
-				Point mouse{ static_cast<float>(ptx),static_cast<float>(pty) };
-				auto [nearest, i] = fractal.nearest(mouse);
 
-				if (i >= 0 && distance(nearest, mouse) < point_selection_max_distance_px * last_pixel_size)
-				{
-					drag_mode = DragMode::MovingObject;
-					drag_startx = x;
-					drag_starty = y;
-					drag_start_modelx = nearest.x;
-					drag_start_modely = nearest.y;
-					moving_model_index = i;
-				}
-				else
-				{
-					if (operator_mode == OperatorMode::Constructing)
-					{
-						fractal.model.push_back(mouse);
-					}
-				}
-			}*/
-		}
-		else if (state == GLFW_RELEASE) {
-			/*if (drag_mode == DragMode::MovingObject)
-			{
-				delete[] fractal.current;
-				fractal.current = nullptr;
-				int n = fractal.iterations;
-				fractal.iterations = 0;
-				for (int i = 0; i < n; ++i)
-				{
-					++fractal;
-				}
-				update_va(current_array, current_buf, fractal.current, fractal.current_size);
-			}*/
+				auto tensor_name = view->hit_test(ptx, pty);
+				view->set_selected(tensor_name);
+			}
+
 			drag_mode = DragMode::Disabled;
 		}
 		break;
@@ -333,7 +297,6 @@ int main(int argc, char **argv)
 	ImGui::StyleColorsDark();
 	//ImGui::StyleColorsClassic();
 
-	// Setup Platform/Renderer bindings
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init();
 
@@ -342,8 +305,7 @@ int main(int argc, char **argv)
 	auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
 	GraphView graph_view(&graph, "data_0");
 
-	glGenVertexArrays(1, &current_array);
-	glGenBuffers(1, &current_buf);
+	glfwSetWindowUserPointer(window, &graph_view);
 
 	while (!glfwWindowShouldClose(window))
 	{

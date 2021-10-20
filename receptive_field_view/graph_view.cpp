@@ -16,10 +16,19 @@ void update_va(GLuint arr, GLuint buf, const Point *points, size_t npoints)
 	glEnableVertexAttribArray(0);
 }
 
+void update_va(GLuint arr, GLuint buf, const Point3f *points, size_t npoints)
+{
+	glBindVertexArray(arr);
+	glBindBuffer(GL_ARRAY_BUFFER, buf);
+	glBufferData(GL_ARRAY_BUFFER, npoints * 3 * sizeof(float), points, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+}
+
 GraphView::GraphView(Graph *g, const std::string &start_node) :g(g), start_node(start_node)
 {
-	glGenVertexArrays(1, &array_tensors);
-	glGenBuffers(1, &buf_tensors);
+	glGenVertexArrays(1, &tensors.arr);
+	glGenBuffers(1, &tensors.buf);
 
 	graph_depth = 0;
 	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) {graph_depth = level+1; return 0; });
@@ -32,17 +41,14 @@ void GraphView::update_layout()
 	float max_width = 0;
 	float max_level = 0;
 
-	//projection.clear();
-	//std::vector<std::vector<Row>> projection;
 	std::vector<Point> tensor_points;
+	std::vector<std::vector<Point3f>> fields_points;
 
 	float x = -graph_depth * node_height_margin / 2;
+	float z = 0;
 
 	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) 
 	{
-		//float width = ((float)names.size() - 1) * node_width_margin;
-		//float x = (float)level * (cell_width + node_height_margin);
-
 		float row_width = (names.size() - 1) * node_width_margin;
 		for (auto &name : names)
 		{
@@ -83,14 +89,7 @@ void GraphView::update_layout()
 				break;
 			}
 
-#if 0
-			if (projection.size() <= level)
-				projection.resize(level + 1);
-
-			projection[level].push_back({ n, name, g.receptive_field(name, direction) });
-#else
-
-			base_points[name] = { x,y };
+			base_points[name] = { {x,y},n };
 			tensor_points.reserve(tensor_points.size() + n * 2 + 2);
 
 			tensor_points.push_back({ x, y });
@@ -110,7 +109,16 @@ void GraphView::update_layout()
 				y += cell_width;
 			}
 			y += node_width_margin;
-#endif
+
+			auto fields = g.receptive_field(name, direction);
+
+			for (auto &field : fields)
+			{
+				auto from = base_points.at(field.input).base;
+				auto to = base_points.at(name).base;
+				auto points = render_field(field, from, to, bezier_interp_steps, 0.01f, &z);
+				fields_points.push_back(points);
+			}
 		}
 
 		max_width = max(max_width, y);
@@ -128,20 +136,27 @@ void GraphView::update_layout()
 
 	//auto [projection_array, points] = render_projection(projection);
 
-//	base_points = points;
-	update_va(array_tensors, buf_tensors, tensor_points.data(), tensor_points.size());
-	size_tensors = (GLsizei)tensor_points.size();
+	update_va(tensors.arr, tensors.buf, tensor_points.data(), tensor_points.size());
+	tensors.size = (GLsizei)tensor_points.size();
 
-	//for (auto &base_point : base_points)
-	//{
-	//	render_field()
-	//}
+	fields.resize(fields_points.size());
+	for (size_t i = 0; i < fields_points.size(); ++i)
+	{
+		if (!fields[i].arr || !fields[i].buf)
+		{
+			glGenVertexArrays(1, &fields[i].arr);
+			glGenBuffers(1, &fields[i].buf);
+		}
+
+		update_va(fields[i].arr, fields[i].buf, fields_points[i].data(), fields_points[i].size());
+		fields[i].size = (GLsizei)fields_points[i].size();
+	}
 }
 
 GraphView::~GraphView()
 {
-	glDeleteBuffers(1, &buf_tensors);
-	glDeleteVertexArrays(1, &array_tensors);
+	glDeleteBuffers(1, &tensors.buf);
+	glDeleteVertexArrays(1, &tensors.arr);
 }
 
 /*float GraphView::width_offset(const std::vector<Row> &level) const
@@ -198,9 +213,35 @@ std::tuple<std::vector<Point>, std::map<std::string, Point>> GraphView::render_p
 
 void GraphView::draw()
 {
+	glBindVertexArray(tensors.arr);
+	glBindBuffer(GL_ARRAY_BUFFER, tensors.buf);
 	glColor3f(1, 1, 1);
-	glDrawArrays(GL_LINES, 0, size_tensors);
+	glDrawArrays(GL_LINES, 0, tensors.size);
 
+	for (auto &field : fields)
+	{
+		glColor4f(0.7f, 0.7f, 0.7f, 0.5f);
+		glBindVertexArray(field.arr);
+		glBindBuffer(GL_ARRAY_BUFFER, field.buf);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, field.size);
+	}
+
+	auto it_selected = base_points.find(selected_name);
+	if (it_selected != base_points.end())
+	{
+		float margin = cell_width * 0.3f;
+		auto b = it_selected->second;
+		glColor3f(1.0f, 1.0f, 0.2f);
+
+		glBegin(GL_LINE_LOOP);
+		glVertex2f(b.base.x - margin, b.base.y - margin);
+		glVertex2f(b.base.x - margin, b.base.y + b.n * cell_width + margin);
+		glVertex2f(b.base.x + cell_width + margin, b.base.y + b.n * cell_width + margin);
+		glVertex2f(b.base.x + cell_width + margin, b.base.y - margin);
+		glEnd();
+	}
+
+#if 0
 	//glBegin(GL_LINES);
 	g->walk_forward("data_0", [&](const Graph &g, const std::set<std::string> &names, int level)
 	{
@@ -236,6 +277,7 @@ void GraphView::draw()
 		return 0;
 	});
 	//glEnd();
+#endif
 }
 
 void GraphView::set_layout(float cell_width, float node_width_margin, float node_height_margin)
@@ -273,7 +315,7 @@ vector<Point> zip(const vector<Point> &left, const vector<Point> &right)
 	return points;
 }
 
-vector<Point3f> GraphView::render_field(const Field &field, const Point &from, const Point &to, int interp_steps, float dz, float startz) const
+vector<Point3f> GraphView::render_field(const Field &field, const Point &from, const Point &to, int interp_steps, float dz, float *pz) const
 {
 	vector<FromTo> one{ 1 };
 	one[0].from_input = field.field.front().from_input;
@@ -281,7 +323,7 @@ vector<Point3f> GraphView::render_field(const Field &field, const Point &from, c
 	one[0].to_input = field.field.back().to_input;
 	one[0].to_output = field.field.back().to_output;
 
-	float z = startz;
+	float z = *pz;
 	vector<Point3f> result;
 
 	for (auto &ray : one)
@@ -305,5 +347,20 @@ vector<Point3f> GraphView::render_field(const Field &field, const Point &from, c
 		z += dz;
 	}
 
+	*pz = z;
 	return result;
+}
+
+std::string GraphView::hit_test(double x, double y) const
+{
+	for (auto &base_point : base_points)
+	{
+		BasePoint b = base_point.second;
+		if (b.base.x <= x && x < b.base.x + cell_width &&
+			b.base.y <= y && y < b.base.y + b.n * cell_width)
+		{
+			return base_point.first;
+		}
+	}
+	return "";
 }
