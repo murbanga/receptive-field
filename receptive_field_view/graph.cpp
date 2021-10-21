@@ -141,6 +141,7 @@ Graph Graph::load(const char *filename)
 		Node node;
 
 		node.name = name;
+		node.op_name = n.op_type();
 		node.op_type = str_to_op_type(n.op_type());
 
 		for (auto &a : n.attribute())
@@ -188,7 +189,7 @@ Graph Graph::load(const char *filename)
 	return g;
 }
 
-int Graph::walk_forward(const string &beg, std::function<int(const Graph &g, const set<string> &names, int level)> f) const
+int Graph::walk_forward(const string &beg, Callback f) const
 {
 	assert(forw.find(beg) != forw.end());
 
@@ -219,6 +220,12 @@ int Graph::walk_forward(const string &beg, std::function<int(const Graph &g, con
 	return 0;
 }
 
+int Graph::walk_backward(const std::string &beg, Callback f) const
+{
+	assert(back.find(beg) != back.end());
+	return 0;
+}
+
 vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 {
 	if (nodes.find(name) == nodes.end())
@@ -232,7 +239,8 @@ vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 	switch (node.op_type)
 	{
 	case OpType::Relu:
-		assert(node.inputs.size() == 1);
+	case OpType::Dropout:
+		//assert(node.inputs.size() == 1);
 		return identity_field(node, dir);
 
 	case OpType::Conv:
@@ -246,37 +254,38 @@ vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 	case OpType::Concat:
 		return concat_field(node, dir);
 
+	case OpType::GlobalAveragePool:
+		return gapool_field(node, dir);
+
 	default:
 		//assert(false);
-		printf("receptive field for op '%d' not implemented\n", (int)node.op_type);
+		printf("receptive field for op '%s' not implemented\n", node.op_name.c_str());
 		return {};
+	}
+}
+
+int Graph::length(const std::string &name, Direction dir) const
+{
+	auto &tensor = tensors.at(name);
+
+	switch (dir)
+	{
+	case Direction::ByRows:
+		return tensor.height;
+	case Direction::ByColumns:
+		return tensor.width;
+	default:
+		assert(false);
+		return -1;
 	}
 }
 
 std::vector<Field> Graph::identity_field(const Node &node, Direction dir) const
 {
-	auto &in_tensor = tensors.at(node.inputs[0]);
-	auto &out_tensor = tensors.at(node.name);
+	int in_length = length(node.inputs[0], dir);
+	int out_length = length(node.name, dir);
 
-	assert(in_tensor.width == out_tensor.width);
-	assert(out_tensor.height == out_tensor.height);
-
-	int in_length;
-	int out_length;
-	switch (dir)
-	{
-	case Direction::ByRows:
-		in_length = in_tensor.height;
-		out_length = out_tensor.height;
-		break;
-	case Direction::ByColumns:
-		in_length = in_tensor.width;
-		out_length = out_tensor.width;
-		break;
-	default:
-		assert(false);
-		break;
-	}
+	assert(in_length == out_length);
 
 	Field field;
 	field.input = node.inputs[0];
@@ -375,5 +384,46 @@ std::vector<Field> Graph::conv_field(const Node &node, Direction direction) cons
 
 std::vector<Field> Graph::concat_field(const Node &node, Direction dir) const
 {
+	int axis = 1;
+
+	auto it_axis = node.attrs.find("axis");
+	if (it_axis != node.attrs.end())
+	{
+		axis = (int)std::get<int64_t>(it_axis->second);
+	}
+
+	if (axis != 2 && axis != 3)
+	{
+		std::vector<Field> ff;
+		for (auto &input : node.inputs)
+		{
+			int in_length = length(input, dir);
+			Field f;
+			f.input = input;
+			f.output = node.name;
+			f.field.reserve(in_length);
+
+			for (int i = 0; i < in_length; ++i)
+			{
+				f.field.push_back({ i,i + 1, i, i + 1 });
+			}
+
+			ff.push_back(f);
+		}
+
+		return ff;
+	}
+	assert(false);
 	return std::vector<Field>();
+}
+
+std::vector<Field> Graph::gapool_field(const Node &node, Direction dir) const
+{
+	int in_length = length(node.inputs[0], dir);
+	Field f;
+	f.input = node.inputs[0];
+	f.output = node.name;
+	f.field.push_back({ 0,in_length,0,1 });
+
+	return { f };
 }

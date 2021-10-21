@@ -24,7 +24,7 @@ enum class DragMode
 {
 	Disabled = 0,
 	Panning = 1,
-	MovingObject = 2,
+	SelectingPixels = 2,
 };
 
 static const int point_selection_max_distance_px = 4;
@@ -75,11 +75,15 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 			drag_mode = DragMode::Panning;
 			double x, y;
 			glfwGetCursorPos(window, &x, &y);
+
+			double ptx, pty;
+			unproj(x, y, ptx, pty);
+
 			drag_startx = x;
 			drag_starty = y;
 			drag_start_modelx = modelx;
 			drag_start_modely = modely;
-		}		
+		}
 		else if (state == GLFW_RELEASE)
 		{
 			double x, y;
@@ -89,7 +93,7 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 				double ptx, pty;
 				unproj(x, y, ptx, pty);
 
-				auto tensor_name = view->hit_test(ptx, pty);
+				auto [tensor_name, end] = view->hit_test(ptx, pty);
 				view->set_selected(tensor_name);
 			}
 
@@ -150,10 +154,10 @@ void motion(GLFWwindow *window, double x, double y)
 		//drag_iterations++;
 		break;
 	}
-	case DragMode::MovingObject:
+	//case DragMode::MovingObject:
 		//fractal.model[moving_model_index].x = static_cast<float>(drag_start_modelx + endx - startx);
 		//fractal.model[moving_model_index].y = static_cast<float>(drag_start_modely + endy - starty);
-		break;
+	//	break;
 	}
 }
 void draw_model()
@@ -242,13 +246,43 @@ void glfw_error_callback(int error, const char *description)
 	fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
+std::string attribute_to_string(const Attribute &a)
+{
+	switch(a.index())
+	{
+	case 0: // int64_t
+	{
+		auto v = std::get<int64_t>(a);
+		return std::to_string(v);
+	}
+	case 1:
+	{
+		auto vec = std::get<std::vector<int64_t>>(a);
+		std::string s;
+		for (auto &v : vec)
+		{
+			s += std::to_string(v) + ", ";
+		}
+		return s;
+	}
+	case 2:
+		return std::get<std::string>(a);
+	}
+	assert(false);
+	return "";
+}
+
+static std::map<std::string, std::string> attribute_edit_cache;
+static bool per_pixel_field = false;
+
 void draw_ui(GraphView *view)
 {
 	using namespace ImGui;
 	if (Begin("settings"))
 	{
-
-		Button("reset");
+		//Button("reset zoom and pos");
+		Checkbox("Per pixel field", &per_pixel_field);
+		
 		Separator();
 		Text("Layout");
 
@@ -266,7 +300,41 @@ void draw_ui(GraphView *view)
 			view->set_layout(cw, nwm, nhm);
 		}
 	}
+	End();
 
+	if (Begin("selected"))
+	{
+		auto *graph = view->graph();
+		auto selected = view->selected();
+		if(!selected.empty())
+		{
+			const Tensor &tensor = graph->tensors.at(selected);
+			Text("%s", selected.c_str());
+			Text("%dx%dx%dx%d", tensor.n, tensor.channel, tensor.height, tensor.width);
+			auto it_node = graph->nodes.find(selected);
+			if (it_node != graph->nodes.end())
+			{
+				Separator();
+				Text("%s", it_node->second.op_name.c_str());
+				Separator();
+				Text("attributes");
+
+				for (auto &a : it_node->second.attrs)
+				{
+					std::string key = selected + "_" + a.first;
+					if (attribute_edit_cache.find(key) == attribute_edit_cache.end())
+					{
+						attribute_edit_cache[key] = attribute_to_string(a.second);
+					}
+					InputText(a.first.c_str(), &attribute_edit_cache.at(key));
+				}
+			}
+		}
+		else
+		{
+			Text("Nothing selected");
+		}
+	}
 	End();
 }
 
@@ -276,7 +344,7 @@ int main(int argc, char **argv)
 	if (!glfwInit())
 		return 1;
 
-	GLFWwindow *window = glfwCreateWindow(1280, 720, "fractale", nullptr, nullptr);
+	GLFWwindow *window = glfwCreateWindow(1280, 720, "receptive field viewer", nullptr, nullptr);
 	if (!window)
 		return 1;
 	glfwMakeContextCurrent(window);
@@ -302,6 +370,7 @@ int main(int argc, char **argv)
 
 	io.FontDefault = io.Fonts->AddFontDefault();
 
+	// D:/models/vision/body_analysis/age_gender/models/age_googlenet.onnx
 	auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
 	GraphView graph_view(&graph, "data_0");
 
