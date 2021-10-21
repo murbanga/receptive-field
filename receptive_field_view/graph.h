@@ -76,12 +76,11 @@ public:
 	int walk_backward(const std::string &beg, Callback f) const;
 
 	std::vector<Field> receptive_field(const std::string &node, Direction dir) const;
+	int Graph::length(const std::string &name, Direction dir) const;
 private:
 	std::vector<Field> identity_field(const Node &node, Direction dir) const;
 	std::vector<Field> conv_field(const Node &node, Direction dir) const;
 	std::vector<Field> concat_field(const Node &node, Direction dir) const;
 	std::vector<Field> gapool_field(const Node &node, Direction dir) const;
-
-	int Graph::length(const std::string &name, Direction dir) const;
 };
 

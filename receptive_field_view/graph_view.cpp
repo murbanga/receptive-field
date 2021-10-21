@@ -4,6 +4,7 @@
 #include "graph_view.h"
 
 #include "../bazier/include/bezier.h"
+#include "colors.h"
 
 using namespace std;
 
@@ -42,7 +43,8 @@ void GraphView::update_layout()
 	float max_level = 0;
 
 	std::vector<Point> tensor_points;
-	std::vector<std::vector<Point3f>> fields_points;
+	std::vector<Point3f> fields_points;
+	std::vector<FieldView> f_views;
 
 	float x = -graph_depth * node_width_margin / 2;
 	float z = 0;
@@ -50,44 +52,18 @@ void GraphView::update_layout()
 	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) 
 	{
 		float row_height = (names.size() - 1) * node_height_margin;
+
 		for (auto &name : names)
 		{
-			Tensor t = g.tensors.at(name);
-			int n;
-
-			switch (direction)
-			{
-			case Direction::ByRows:
-				n = t.height;
-				break;
-			case Direction::ByColumns:
-				n = t.width;
-				break;
-			default:
-				assert(false);
-				break;
-			}
+			int n = g.length(name, direction);
 			row_height += (float)n * cell_height;
 		}
+
 		float y = -row_height / 2;
 
 		for (auto &name : names)
 		{
-			Tensor t = g.tensors.at(name);
-			int n;
-
-			switch (direction)
-			{
-			case Direction::ByRows:
-				n = t.height;
-				break;
-			case Direction::ByColumns:
-				n = t.width;
-				break;
-			default:
-				assert(false);
-				break;
-			}
+			int n = g.length(name, direction);
 
 			base_points[name] = { {x,y},n };
 			tensor_points.reserve(tensor_points.size() + n * 2 + 2);
@@ -116,8 +92,15 @@ void GraphView::update_layout()
 			{
 				auto from = base_points.at(field.input).base;
 				auto to = base_points.at(name).base;
-				auto points = render_field(field, from, to, 0.01f, &z);
-				fields_points.push_back(points);
+				auto [points, indexes] = render_field(field, from, to, 0.01f, &z);
+
+				FieldView view;
+				view.offset = (GLint)fields_points.size();
+				view.ray_field = field;
+				view.ray_indexes = indexes;
+				f_views.push_back(view);
+
+				fields_points.insert(fields_points.end(), points.begin(), points.end());
 			}
 		}
 
@@ -131,26 +114,18 @@ void GraphView::update_layout()
 
 	graph_width = max_width;
 	graph_height = max_level;
+	field_views = f_views;
 
 	printf("graph size %f x %f\n", max_width, max_level);
-
-	//auto [projection_array, points] = render_projection(projection);
 
 	update_va(tensors.arr, tensors.buf, tensor_points.data(), tensor_points.size());
 	tensors.size = (GLsizei)tensor_points.size();
 
-	fields.resize(fields_points.size());
-	for (size_t i = 0; i < fields_points.size(); ++i)
-	{
-		if (!fields[i].arr || !fields[i].buf)
-		{
-			glGenVertexArrays(1, &fields[i].arr);
-			glGenBuffers(1, &fields[i].buf);
-		}
+	glGenVertexArrays(1, &fields.arr);
+	glGenBuffers(1, &fields.buf);
 
-		update_va(fields[i].arr, fields[i].buf, fields_points[i].data(), fields_points[i].size());
-		fields[i].size = (GLsizei)fields_points[i].size();
-	}
+	update_va(fields.arr, fields.buf, fields_points.data(), fields_points.size());
+	fields.size = (GLsizei)fields_points.size();
 }
 
 GraphView::~GraphView()
@@ -159,8 +134,6 @@ GraphView::~GraphView()
 	glDeleteVertexArrays(1, &tensors.arr);
 }
 
-
-
 void GraphView::draw()
 {
 	glBindVertexArray(tensors.arr);
@@ -168,18 +141,40 @@ void GraphView::draw()
 	glColor3f(1, 1, 1);
 	glDrawArrays(GL_LINES, 0, tensors.size);
 
+	glColor4fv(Colors::inactive_field);
+	glBindVertexArray(fields.arr);
+	glBindBuffer(GL_ARRAY_BUFFER, fields.buf);
+
 	if (is_draw_field_per_pixel)
 	{
+		for (auto &field_view : field_views)
+		{
+			auto &indexes = field_view.ray_indexes;
+			size_t n = indexes.size();
+			GLint offset = field_view.offset;
 
+			if (hovered_name == field_view.ray_field.output)
+			{
+				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[0], indexes[hovered_pixel] - indexes[0]);
+
+				glColor4fv(Colors::hovered_field);
+				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_pixel], indexes[hovered_pixel + 1] - indexes[hovered_pixel]);
+
+				glColor4fv(Colors::inactive_field);
+				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_pixel + 1], indexes[n - 1] - indexes[hovered_pixel + 1]);
+			}
+			else
+			{
+				GLsizei size = indexes[n - 1] - indexes[0];
+				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[0], size);
+			}
+		}
 	}
 	else
 	{
-		for (auto &field : fields)
+		for (auto &field : field_views)
 		{
-			glColor4f(0.7f, 0.7f, 0.7f, 0.5f);
-			glBindVertexArray(field.arr);
-			glBindBuffer(GL_ARRAY_BUFFER, field.buf);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, field.size);
+			glDrawArrays(GL_TRIANGLE_STRIP, field.offset, field.ray_indexes[0]);
 		}
 	}
 
@@ -188,7 +183,7 @@ void GraphView::draw()
 	{
 		float margin = cell_width * 0.3f;
 		auto b = it_selected->second;
-		glColor3f(1.0f, 1.0f, 0.2f);
+		glColor4fv(Colors::selected_tensor);
 
 		glBegin(GL_LINE_LOOP);
 		glVertex2f(b.base.x - margin, b.base.y - margin);
@@ -287,7 +282,7 @@ vector<Point3f> GraphView::render_ray(const Point &from, const Point &to, const 
 	return zip(left, right, z);
 }
 
-vector<Point3f> GraphView::render_field(const Field &field, const Point &from, const Point &to, float dz, float *pz) const
+pair<vector<Point3f>,vector<GLsizei>> GraphView::render_field(const Field &field, const Point &from, const Point &to, float dz, float *pz) const
 {
 	FromTo one;
 	one.from_input = field.field.front().from_input;
@@ -295,10 +290,20 @@ vector<Point3f> GraphView::render_field(const Field &field, const Point &from, c
 	one.to_input = field.field.back().to_input;
 	one.to_output = field.field.back().to_output;
 
-	auto r = render_ray(from, to, one, *pz);
+	std::vector<GLsizei> indexes;
+	auto points = render_ray(from, to, one, *pz);
 	*pz += dz;
+	indexes.push_back((GLsizei)points.size());
 
-	return r;
+	for (auto &ray : field.field)
+	{
+		auto r = render_ray(from, to, ray, *pz);
+		*pz += dz;
+		points.insert(points.end(), r.begin(), r.end());
+		indexes.push_back((GLsizei)points.size());
+	}
+
+	return { points, indexes };
 }
 
 pair<string, int> GraphView::hit_test(double x, double y) const
@@ -309,7 +314,7 @@ pair<string, int> GraphView::hit_test(double x, double y) const
 		if (b.base.x <= x && x < b.base.x + cell_width &&
 			b.base.y <= y && y < b.base.y + b.n * cell_height)
 		{
-			int idx = (y - b.base.y) / cell_height;
+			int idx = int((y - b.base.y) / cell_height);
 			return { base_point.first, idx };
 		}
 	}

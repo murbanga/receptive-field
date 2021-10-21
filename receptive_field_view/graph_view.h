@@ -38,8 +38,9 @@ struct VertexArray
 
 struct FieldView
 {
-	size_t full_size;
-	std::vector<Field> ray_fields;
+	GLint offset;
+	Field ray_field;
+	std::vector<GLsizei> ray_indexes;
 };
 
 class GraphView
@@ -62,15 +63,18 @@ class GraphView
 	VertexArray tensors;
 	VertexArray fields;
 	VertexArray fields_borders;
-	std::map<std::string, FieldView> field_views;
-
+	std::vector<FieldView> field_views;
 	std::map<std::string, BasePoint> base_points;
+
 	std::string selected_name;
 	int selected_beg_pixel = -1;
 	int selected_end_pixel = -1;
 
-	std::vector<Point3f> render_field(const Field &field, const Point &from, const Point &to, float dz, float *z) const;
-	std::vector<Point3f> render_rays(const Point &from, const Point &to, const FromTo &ray, float z) const;
+	std::string hovered_name;
+	int hovered_pixel = -1;
+
+	std::pair<std::vector<Point3f>, std::vector<GLsizei>> render_field(const Field &field, const Point &from, const Point &to, float dz, float *z) const;
+	std::vector<Point3f> render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const;
 	void update_layout();
 public:
 	GraphView(Graph *g, const std::string &start_node);
@@ -88,9 +92,11 @@ public:
 	float get_node_height_margin() const { return node_height_margin; }
 
 	void set_layout(float cell_width, float node_width_margin, float node_height_margin);
+	void set_draw_field_per_pixel(bool val) { is_draw_field_per_pixel = val; }
 
 	std::pair<std::string, int> hit_test(double x, double y) const;
 
 	void set_selected(const std::string &name, int beg = -1, int end = -1) { selected_name = name; selected_beg_pixel = beg; selected_end_pixel = end; }
+	void set_hovered(const std::string &name, int index) { hovered_name = name; hovered_pixel = index; }
 
 };

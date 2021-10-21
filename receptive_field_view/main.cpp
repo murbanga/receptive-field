@@ -13,6 +13,7 @@
 
 #include "graph.h"
 #include "graph_view.h"
+#include "utils.h"
 
 enum class OperatorMode
 {
@@ -139,29 +140,38 @@ void scroll(GLFWwindow *window, double xscroll, double yscroll)
 
 void motion(GLFWwindow *window, double x, double y)
 {
+	GraphView *view = reinterpret_cast<GraphView *>(glfwGetWindowUserPointer(window));
+
 	if (drag_mode == DragMode::Disabled)
-		return;
-
-	double startx, starty, endx, endy;
-	unproj(drag_startx, drag_starty, startx, starty);
-	unproj(x, y, endx, endy);
-
-	switch (drag_mode) {
-	case DragMode::Panning:
 	{
-		modelx = drag_start_modelx + startx - endx;
-		modely = drag_start_modely + starty - endy;
-		//drag_iterations++;
+		double mx, my;
+		unproj(x, y, mx, my);
+		auto [name, idx] = view->hit_test(mx, my);
+		view->set_hovered(name, idx);
+	}
+	else
+	{
+		double startx, starty, endx, endy;
+		unproj(drag_startx, drag_starty, startx, starty);
+		unproj(x, y, endx, endy);
+
+		switch (drag_mode) {
+		case DragMode::Panning:
+		{
+			modelx = drag_start_modelx + startx - endx;
+			modely = drag_start_modely + starty - endy;
+			//drag_iterations++;
+			break;
+		}
+		case DragMode::SelectingPixels:
+		{
+
+		}
 		break;
+		default:
+			break;
+		}
 	}
-	//case DragMode::MovingObject:
-		//fractal.model[moving_model_index].x = static_cast<float>(drag_start_modelx + endx - startx);
-		//fractal.model[moving_model_index].y = static_cast<float>(drag_start_modely + endy - starty);
-	//	break;
-	}
-}
-void draw_model()
-{
 }
 
 void display(GLFWwindow *window, GraphView *view)
@@ -206,7 +216,7 @@ void display(GLFWwindow *window, GraphView *view)
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(model_left, model_right, model_top, model_bottom, -1e2, 1e2);
+	glOrtho(model_left, model_right, model_top, model_bottom, -1e3, 1e3);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
@@ -274,14 +284,19 @@ std::string attribute_to_string(const Attribute &a)
 
 static std::map<std::string, std::string> attribute_edit_cache;
 static bool per_pixel_field = false;
+static double current_fps = 0;
 
 void draw_ui(GraphView *view)
 {
 	using namespace ImGui;
 	if (Begin("settings"))
 	{
+		Text("%.2f fps", current_fps);
 		//Button("reset zoom and pos");
-		Checkbox("Per pixel field", &per_pixel_field);
+		if (Checkbox("Field each pixel", &per_pixel_field))
+		{
+			view->set_draw_field_per_pixel(per_pixel_field);
+		}
 		
 		Separator();
 		Text("Layout");
@@ -376,6 +391,8 @@ int main(int argc, char **argv)
 
 	glfwSetWindowUserPointer(window, &graph_view);
 
+	FpsCounter counter(10);
+
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
@@ -393,6 +410,8 @@ int main(int argc, char **argv)
 
 		glfwMakeContextCurrent(window);
 		glfwSwapBuffers(window);
+
+		current_fps = counter.tick();
 	}
 
 	ImGui_ImplOpenGL3_Shutdown();
