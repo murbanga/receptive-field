@@ -186,7 +186,7 @@ void GraphView::draw()
 		float x1 = x0 + cell_width;
 		float y0 = hov.base.y + hovered_idx * cell_height;
 		float y1 = y0 + cell_height;
-		glColor4fv(Colors::selected_pixel);
+		glColor4fv(Colors::hovered_pixel);
 		glBegin(GL_QUADS);
 		glVertex2f(x0, y0);
 		glVertex2f(x0, y1);
@@ -208,6 +208,21 @@ void GraphView::draw()
 		glVertex2f(b.base.x + cell_width + margin, b.base.y + b.n * cell_height + margin);
 		glVertex2f(b.base.x + cell_width + margin, b.base.y - margin);
 		glEnd();
+
+		if (selected_beg_pixel >= 0 && selected_end_pixel >= 0)
+		{
+			float x0 = b.base.x;
+			float x1 = x0 + cell_width;
+			float y0 = b.base.y + selected_beg_pixel * cell_height;
+			float y1 = b.base.y + selected_end_pixel * cell_height;
+			glColor4fv(Colors::selected_pixel);
+			glBegin(GL_QUADS);
+			glVertex2f(x0, y0);
+			glVertex2f(x0, y1);
+			glVertex2f(x1, y1);
+			glVertex2f(x1, y0);
+			glEnd();
+		}
 	}
 
 #if 0

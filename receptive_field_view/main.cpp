@@ -41,10 +41,9 @@ static double drag_startx = -1;
 static double drag_starty = -1;
 static double drag_start_modelx;
 static double drag_start_modely;
-static int moving_model_index = -1;
 
-//static GLuint current_array;
-//static GLuint current_buf;
+static std::string drag_name;
+static int drag_idx = -1;
 
 void unproj(double x, double y, double &objx, double &objy)
 {
@@ -73,30 +72,46 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 	case GLFW_MOUSE_BUTTON_LEFT:
 		if (state == GLFW_PRESS)
 		{
-			drag_mode = DragMode::Panning;
 			double x, y;
 			glfwGetCursorPos(window, &x, &y);
 
 			double ptx, pty;
 			unproj(x, y, ptx, pty);
 
-			drag_startx = x;
-			drag_starty = y;
-			drag_start_modelx = modelx;
-			drag_start_modely = modely;
+			auto [name, idx] = view->hit_test(ptx, pty);
+			if (!name.empty() && idx > -1)
+			{
+				drag_mode = DragMode::SelectingPixels;
+				drag_name = name;
+				drag_idx = idx;
+			}
+			else
+			{
+				drag_mode = DragMode::Panning;
+				drag_startx = x;
+				drag_starty = y;
+				drag_start_modelx = modelx;
+				drag_start_modely = modely;
+			}
 		}
 		else if (state == GLFW_RELEASE)
 		{
-			double x, y;
-			glfwGetCursorPos(window, &x, &y);
-			if (x == drag_startx && y == drag_starty)
-			{
-				double ptx, pty;
-				unproj(x, y, ptx, pty);
+			//if (drag_mode == DragMode::SelectingPixels)
+			//{
+			//	double x, y;
+			//	glfwGetCursorPos(window, &x, &y);
 
-				auto [tensor_name, end] = view->hit_test(ptx, pty);
-				view->set_selected(tensor_name);
-			}
+			//	double ptx, pty;
+			//	unproj(x, y, ptx, pty);
+
+			//	auto [name, end_idx] = view->hit_test(ptx, pty);
+			//	if (name == drag_name)
+			//	{
+			//		int beg = min(drag_idx, end_idx);
+			//		int end = max(drag_idx, end_idx);
+			//		view->set_selected(name, beg, end + 1);
+			//	}
+			//}
 
 			drag_mode = DragMode::Disabled;
 		}
@@ -141,36 +156,37 @@ void scroll(GLFWwindow *window, double xscroll, double yscroll)
 void motion(GLFWwindow *window, double x, double y)
 {
 	GraphView *view = reinterpret_cast<GraphView *>(glfwGetWindowUserPointer(window));
+	double ptx, pty;
+	unproj(x, y, ptx, pty);
 
-	if (drag_mode == DragMode::Disabled)
+	switch (drag_mode)
 	{
-		double mx, my;
-		unproj(x, y, mx, my);
-		auto [name, idx] = view->hit_test(mx, my);
+	case DragMode::Disabled:
+	{
+		auto [name, idx] = view->hit_test(ptx, pty);
 		view->set_hovered(name, idx);
 	}
-	else
+	break;
+	case DragMode::Panning:
 	{
-		double startx, starty, endx, endy;
+		double startx, starty;
 		unproj(drag_startx, drag_starty, startx, starty);
-		unproj(x, y, endx, endy);
 
-		switch (drag_mode) {
-		case DragMode::Panning:
+		modelx = drag_start_modelx + startx - ptx;
+		modely = drag_start_modely + starty - pty;
+	}
+	break;
+	case DragMode::SelectingPixels:
+	{
+		auto [name, end_idx] = view->hit_test(ptx, pty);
+		if (name == drag_name)
 		{
-			modelx = drag_start_modelx + startx - endx;
-			modely = drag_start_modely + starty - endy;
-			//drag_iterations++;
-			break;
+			int beg = min(drag_idx, end_idx);
+			int end = max(drag_idx, end_idx);
+			view->set_selected(name, beg, end + 1);
 		}
-		case DragMode::SelectingPixels:
-		{
-
-		}
-		break;
-		default:
-			break;
-		}
+	}
+	break;
 	}
 }
 
