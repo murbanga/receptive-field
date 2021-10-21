@@ -71,7 +71,7 @@ class GraphView
 	int selected_end_pixel = -1;
 
 	std::string hovered_name;
-	int hovered_pixel = -1;
+	int hovered_idx = -1;
 
 	std::pair<std::vector<Point3f>, std::vector<GLsizei>> render_field(const Field &field, const Point &from, const Point &to, float dz, float *z) const;
 	std::vector<Point3f> render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const;
@@ -97,6 +97,6 @@ public:
 	std::pair<std::string, int> hit_test(double x, double y) const;
 
 	void set_selected(const std::string &name, int beg = -1, int end = -1) { selected_name = name; selected_beg_pixel = beg; selected_end_pixel = end; }
-	void set_hovered(const std::string &name, int index) { hovered_name = name; hovered_pixel = index; }
+	void set_hovered(const std::string &name, int index) { hovered_name = name; hovered_idx = index; }
 
 };

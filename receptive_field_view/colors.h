@@ -7,5 +7,7 @@ constexpr float inactive_field[] =
 constexpr float hovered_field[] =
 { 1.0f, 1.0f, 1.0f, 1.0f };
 constexpr float selected_tensor[] =
-{ 1.0f, 1.0f, 0.2f ,1.0f };
+{ 1.0f, 1.0f, 0.2f, 1.0f };
+constexpr float selected_pixel[] =
+{ 1.0f, 1.0f, 0.8f, 1.0f };
 }

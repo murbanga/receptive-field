@@ -155,13 +155,13 @@ void GraphView::draw()
 
 			if (hovered_name == field_view.ray_field.output)
 			{
-				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[0], indexes[hovered_pixel] - indexes[0]);
+				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[0], indexes[hovered_idx] - indexes[0]);
 
 				glColor4fv(Colors::hovered_field);
-				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_pixel], indexes[hovered_pixel + 1] - indexes[hovered_pixel]);
+				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_idx], indexes[hovered_idx + 1] - indexes[hovered_idx]);
 
 				glColor4fv(Colors::inactive_field);
-				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_pixel + 1], indexes[n - 1] - indexes[hovered_pixel + 1]);
+				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_idx + 1], indexes[n - 1] - indexes[hovered_idx + 1]);
 			}
 			else
 			{
@@ -176,6 +176,23 @@ void GraphView::draw()
 		{
 			glDrawArrays(GL_TRIANGLE_STRIP, field.offset, field.ray_indexes[0]);
 		}
+	}
+
+	auto it_hovered = base_points.find(hovered_name);
+	if (it_hovered != base_points.end())
+	{
+		auto &hov = it_hovered->second;
+		float x0 = hov.base.x;
+		float x1 = x0 + cell_width;
+		float y0 = hov.base.y + hovered_idx * cell_height;
+		float y1 = y0 + cell_height;
+		glColor4fv(Colors::selected_pixel);
+		glBegin(GL_QUADS);
+		glVertex2f(x0, y0);
+		glVertex2f(x0, y1);
+		glVertex2f(x1, y1);
+		glVertex2f(x1, y0);
+		glEnd();
 	}
 
 	auto it_selected = base_points.find(selected_name);
@@ -243,7 +260,7 @@ void GraphView::set_layout(float cell_width, float node_width_margin, float node
 
 vector<Point> bezier(const Point &from, const Point &to, int n)
 {
-	Bezier::Bezier<3> curve({ {from.x, from.y},{to.x,from.y}, {from.x, to.y}, {to.x,to.y} });
+	Bezier::Bezier<3> curve({ {from.x, from.y},{(from.x + to.x) / 2,from.y}, {(from.x + to.x) / 2, to.y}, {to.x,to.y} });
 
 	std::vector<Point> points(n + 1);
 	points[0] = { from.x, from.y };
