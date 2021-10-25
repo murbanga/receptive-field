@@ -12,6 +12,25 @@
 
 using namespace std;
 
+Range find_input(const std::vector<FromTo> &field, int beg, int end)
+{
+	// FIXME: binary search
+	Range range = { -1, -1 };
+
+	for (size_t i = 0; i < field.size(); ++i)
+	{
+		if (field[i].from_output <= beg && beg < field[i].to_output)
+			range.beg = field[i].from_input;
+
+		if (field[i].from_output < end && end <= field[i].to_output)
+			range.end = field[i].to_input;
+	}
+	
+	assert(range.beg <= range.end);
+
+	return range;
+}
+
 bool operator==(const Tensor &a, const Tensor &b)
 {
 	return a.n == b.n && a.channel == b.channel && a.width == b.width && a.height == b.height;

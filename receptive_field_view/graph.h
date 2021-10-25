@@ -47,12 +47,21 @@ struct FromTo
 	int to_output;
 };
 
+struct Range
+{
+	int beg;
+	int end;
+};
+
+Range find_input(const std::vector<FromTo> &field, int beg, int end);
+
 struct Field
 {
 	std::string input;
 	std::string output;
 	std::vector<FromTo> field;
 };
+
 enum class Direction
 {
 	ByRows = 0,

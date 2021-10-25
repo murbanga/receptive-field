@@ -96,22 +96,22 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 		}
 		else if (state == GLFW_RELEASE)
 		{
-			//if (drag_mode == DragMode::SelectingPixels)
-			//{
-			//	double x, y;
-			//	glfwGetCursorPos(window, &x, &y);
+			if (drag_mode == DragMode::SelectingPixels)
+			{
+				double x, y;
+				glfwGetCursorPos(window, &x, &y);
 
-			//	double ptx, pty;
-			//	unproj(x, y, ptx, pty);
+				double ptx, pty;
+				unproj(x, y, ptx, pty);
 
-			//	auto [name, end_idx] = view->hit_test(ptx, pty);
-			//	if (name == drag_name)
-			//	{
-			//		int beg = min(drag_idx, end_idx);
-			//		int end = max(drag_idx, end_idx);
-			//		view->set_selected(name, beg, end + 1);
-			//	}
-			//}
+				auto [name, end_idx] = view->hit_test(ptx, pty);
+				if (name == drag_name)
+				{
+					int beg = min(drag_idx, end_idx);
+					int end = max(drag_idx, end_idx);
+					view->set_selected(name, beg, end + 1);
+				}
+			}
 
 			drag_mode = DragMode::Disabled;
 		}
@@ -299,7 +299,7 @@ std::string attribute_to_string(const Attribute &a)
 }
 
 static std::map<std::string, std::string> attribute_edit_cache;
-static bool per_pixel_field = false;
+static bool per_pixel_field = true;
 static double current_fps = 0;
 
 void draw_ui(GraphView *view)
@@ -337,12 +337,12 @@ void draw_ui(GraphView *view)
 	{
 		auto *graph = view->graph();
 		auto selected = view->selected();
-		if(!selected.empty())
+		if(!selected.name.empty())
 		{
-			const Tensor &tensor = graph->tensors.at(selected);
-			Text("%s", selected.c_str());
-			Text("%dx%dx%dx%d", tensor.n, tensor.channel, tensor.height, tensor.width);
-			auto it_node = graph->nodes.find(selected);
+			const Tensor &tensor = graph->tensors.at(selected.name);
+			Text("%s", selected.name.c_str());
+			Text("%dx%dx%dx%d, %s %d-%d", tensor.n, tensor.channel, tensor.height, tensor.width, view->dir().c_str(), selected.beg, selected.end);
+			auto it_node = graph->nodes.find(selected.name);
 			if (it_node != graph->nodes.end())
 			{
 				Separator();
@@ -352,7 +352,7 @@ void draw_ui(GraphView *view)
 
 				for (auto &a : it_node->second.attrs)
 				{
-					std::string key = selected + "_" + a.first;
+					std::string key = selected.name + "_" + a.first;
 					if (attribute_edit_cache.find(key) == attribute_edit_cache.end())
 					{
 						attribute_edit_cache[key] = attribute_to_string(a.second);

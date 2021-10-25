@@ -37,14 +37,20 @@ GraphView::GraphView(Graph *g, const std::string &start_node) :g(g), start_node(
 	update_layout();
 }
 
+GraphView::~GraphView()
+{
+	glDeleteBuffers(1, &tensors.buf);
+	glDeleteVertexArrays(1, &tensors.arr);
+}
+
 void GraphView::update_layout()
 {
 	float max_width = 0;
 	float max_level = 0;
 
-	std::vector<Point> tensor_points;
-	std::vector<Point3f> fields_points;
-	std::vector<FieldView> f_views;
+	vector<Point> tensor_points;
+	vector<Point3f> fields_points;
+	vector<FieldView> f_views;
 
 	float x = -graph_depth * node_width_margin / 2;
 	float z = 0;
@@ -99,6 +105,7 @@ void GraphView::update_layout()
 				view.ray_field = field;
 				view.ray_indexes = indexes;
 				f_views.push_back(view);
+				field_views_of_output[name].push_back(f_views.size() - 1);
 
 				fields_points.insert(fields_points.end(), points.begin(), points.end());
 			}
@@ -115,6 +122,7 @@ void GraphView::update_layout()
 	graph_width = max_width;
 	graph_height = max_level;
 	field_views = f_views;
+	topmost_point_z = z;
 
 	printf("graph size %f x %f\n", max_width, max_level);
 
@@ -128,10 +136,9 @@ void GraphView::update_layout()
 	fields.size = (GLsizei)fields_points.size();
 }
 
-GraphView::~GraphView()
+void GraphView::update_receptive_field()
 {
-	glDeleteBuffers(1, &tensors.buf);
-	glDeleteVertexArrays(1, &tensors.arr);
+
 }
 
 void GraphView::draw()
@@ -153,21 +160,8 @@ void GraphView::draw()
 			size_t n = indexes.size();
 			GLint offset = field_view.offset;
 
-			if (hovered_name == field_view.ray_field.output)
-			{
-				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[0], indexes[hovered_idx] - indexes[0]);
-
-				glColor4fv(Colors::hovered_field);
-				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_idx], indexes[hovered_idx + 1] - indexes[hovered_idx]);
-
-				glColor4fv(Colors::inactive_field);
-				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_idx + 1], indexes[n - 1] - indexes[hovered_idx + 1]);
-			}
-			else
-			{
-				GLsizei size = indexes[n - 1] - indexes[0];
-				glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[0], size);
-			}
+			GLsizei size = indexes[n - 1] - indexes[0];
+			glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[0], size);
 		}
 	}
 	else
@@ -181,6 +175,19 @@ void GraphView::draw()
 	auto it_hovered = base_points.find(hovered_name);
 	if (it_hovered != base_points.end())
 	{
+		glPushMatrix();
+		glTranslatef(0, 0, topmost_point_z + 0.1f);
+
+		glColor4fv(Colors::hovered_field);
+		/*for (auto idx : field_views_of_output.at(hovered_name))
+		{
+			auto &indexes = field_views[idx].ray_indexes;
+			GLint offset = field_views[idx].offset;
+
+			glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_idx], indexes[hovered_idx + 1] - indexes[hovered_idx]);
+		}*/
+		draw_receptive_field(hovered_name, hovered_idx, hovered_idx + 1);
+
 		auto &hov = it_hovered->second;
 		float x0 = hov.base.x;
 		float x1 = x0 + cell_width;
@@ -193,6 +200,8 @@ void GraphView::draw()
 		glVertex2f(x1, y1);
 		glVertex2f(x1, y0);
 		glEnd();
+
+		glPopMatrix();
 	}
 
 	auto it_selected = base_points.find(selected_name);
@@ -262,6 +271,27 @@ void GraphView::draw()
 	});
 	//glEnd();
 #endif
+}
+
+void GraphView::draw_receptive_field(const std::string &name, int beg, int end) const
+{
+	auto it = field_views_of_output.find(name);
+	if (it == field_views_of_output.end())return;
+
+	for (auto idx : it->second)
+	{
+		auto &indexes = field_views[idx].ray_indexes;
+		GLint offset = field_views[idx].offset;
+
+		int clamped_beg = max(0, beg);
+		int clamped_end = min((int)indexes.size() - 1, end);
+
+		glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[clamped_beg], indexes[clamped_end] - indexes[clamped_beg]);
+
+		auto range = find_input(field_views[idx].ray_field.field, clamped_beg, clamped_end);
+
+		draw_receptive_field(field_views[idx].ray_field.input, range.beg, range.end);
+	}
 }
 
 void GraphView::set_layout(float cell_width, float node_width_margin, float node_height_margin)

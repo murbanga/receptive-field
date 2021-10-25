@@ -43,6 +43,13 @@ struct FieldView
 	std::vector<GLsizei> ray_indexes;
 };
 
+struct Selected
+{
+	std::string name;
+	int beg;
+	int end;
+};
+
 class GraphView
 {
 	Graph *g;
@@ -52,19 +59,21 @@ class GraphView
 	float node_width_margin = 1.0f;
 	float node_height_margin = 1.0f;
 	int bezier_interp_steps = 20;
-	bool is_draw_field_per_pixel = false;
+	bool is_draw_field_per_pixel = true;
 
 	Direction direction = Direction::ByRows;
 
 	float graph_width;
 	float graph_height;
 	int graph_depth;
+	float topmost_point_z = 0;
 
 	VertexArray tensors;
 	VertexArray fields;
 	VertexArray fields_borders;
 	std::vector<FieldView> field_views;
 	std::map<std::string, BasePoint> base_points;
+	std::map<std::string, std::vector<size_t>> field_views_of_output;
 
 	std::string selected_name;
 	int selected_beg_pixel = -1;
@@ -75,7 +84,11 @@ class GraphView
 
 	std::pair<std::vector<Point3f>, std::vector<GLsizei>> render_field(const Field &field, const Point &from, const Point &to, float dz, float *z) const;
 	std::vector<Point3f> render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const;
+
+	void draw_receptive_field(const std::string &name, int beg, int end) const;
+
 	void update_layout();
+	void update_receptive_field();
 public:
 	GraphView(Graph *g, const std::string &start_node);
 	~GraphView();
@@ -83,7 +96,20 @@ public:
 	float width() const { return graph_width; }
 	float height() const { return graph_height; }
 	const Graph *graph() const { return g; }
-	std::string selected()const { return selected_name; }
+	Selected selected()const { return { selected_name, selected_beg_pixel, selected_end_pixel }; }
+	std::string dir() const
+	{
+		switch (this->direction)
+		{
+		case Direction::ByColumns:
+			return "cols";
+		case Direction::ByRows:
+			return "row";
+		default:
+			assert(false);
+			return "";
+		}
+	}
 
 	void draw();
 
@@ -96,7 +122,14 @@ public:
 
 	std::pair<std::string, int> hit_test(double x, double y) const;
 
-	void set_selected(const std::string &name, int beg = -1, int end = -1) { selected_name = name; selected_beg_pixel = beg; selected_end_pixel = end; }
+	void set_selected(const std::string &name, int beg = -1, int end = -1)
+	{
+		selected_name = name;
+		selected_beg_pixel = beg;
+		selected_end_pixel = end;
+		update_receptive_field();
+	}
+
 	void set_hovered(const std::string &name, int index) { hovered_name = name; hovered_idx = index; }
 
 };
