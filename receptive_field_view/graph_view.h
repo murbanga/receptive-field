@@ -1,5 +1,6 @@
 #pragma once
 #include <glad/gl.h>
+#include "font.h"
 
 class Graph;
 
@@ -21,13 +22,6 @@ struct BasePoint
 	Point base;
 	int n;
 };
-
-/*struct Row
-{
-	int n;
-	std::string name;
-	std::vector<Field> fields;
-};*/
 
 struct VertexArray
 {
@@ -71,6 +65,8 @@ class GraphView
 	VertexArray tensors;
 	VertexArray fields;
 	VertexArray fields_borders;
+	Font font;
+
 	std::vector<FieldView> field_views;
 	std::map<std::string, BasePoint> base_points;
 	std::map<std::string, std::vector<size_t>> field_views_of_output;
@@ -85,10 +81,12 @@ class GraphView
 	std::pair<std::vector<Point3f>, std::vector<GLsizei>> render_field(const Field &field, const Point &from, const Point &to, float dz, float *z) const;
 	std::vector<Point3f> render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const;
 
-	void draw_receptive_field(const std::string &name, int beg, int end) const;
+	void draw_receptive_field(const std::string &name, int beg, int end, int level = 0) const;
+	void draw_affected_output(const std::string &name, int beg, int end) const;
+	void draw_pixel_range(const Point &base, int beg, int end) const;
 
 	void update_layout();
-	void update_receptive_field();
+
 public:
 	GraphView(Graph *g, const std::string &start_node);
 	~GraphView();
@@ -127,7 +125,6 @@ public:
 		selected_name = name;
 		selected_beg_pixel = beg;
 		selected_end_pixel = end;
-		update_receptive_field();
 	}
 
 	void set_hovered(const std::string &name, int index) { hovered_name = name; hovered_idx = index; }

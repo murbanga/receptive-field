@@ -18,6 +18,7 @@ enum class OpType
 	Flatten,
 	Softmax,
 	Reshape,
+	LRN,
 };
 
 typedef std::variant<int64_t, std::vector<int64_t>, std::string> Attribute;
@@ -54,6 +55,7 @@ struct Range
 };
 
 Range find_input(const std::vector<FromTo> &field, int beg, int end);
+Range find_output(const std::vector<FromTo> &field, int beg, int end);
 
 struct Field
 {

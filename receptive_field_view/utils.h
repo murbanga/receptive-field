@@ -1,5 +1,7 @@
 #pragma once
 #include <windows.h>
+#include <vector>
+#include <string>
 
 class Profiler
 {
@@ -43,4 +45,31 @@ private:
 	int idx = 0;
 	std::vector<double> history;
 	Profiler prof;
+};
+
+inline std::string ssprintf(const char *format, ...)
+{
+	va_list list;
+	va_start(list, format);
+	char buf[1024];
+	vsnprintf(buf, sizeof(buf), format, list);
+	va_end(list);
+	return buf;
+}
+
+class RangeCache
+{
+public:
+	RangeCache(int beg, int end);
+
+	void set(int beg, int end);
+	bool is_set(int beg, int end) const;
+
+private:
+	struct Chunk
+	{
+		int beg;
+		int end;
+	};
+	std::vector<Chunk> chunks;
 };

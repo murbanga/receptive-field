@@ -5,6 +5,7 @@
 
 #include "../bazier/include/bezier.h"
 #include "colors.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -26,7 +27,7 @@ void update_va(GLuint arr, GLuint buf, const Point3f *points, size_t npoints)
 	glEnableVertexAttribArray(0);
 }
 
-GraphView::GraphView(Graph *g, const std::string &start_node) :g(g), start_node(start_node)
+GraphView::GraphView(Graph *g, const std::string &start_node) :g(g), start_node(start_node), font("Courier", 1)
 {
 	glGenVertexArrays(1, &tensors.arr);
 	glGenBuffers(1, &tensors.buf);
@@ -136,13 +137,42 @@ void GraphView::update_layout()
 	fields.size = (GLsizei)fields_points.size();
 }
 
-void GraphView::update_receptive_field()
+void GraphView::draw_pixel_range(const Point &base, int beg, int end) const
 {
+	float x0 = base.x;
+	float x1 = x0 + cell_width;
+	float y0 = base.y + beg * cell_height;
+	float y1 = base.y + end * cell_height;
 
+	glBegin(GL_QUADS);
+	glVertex2f(x0, y0);
+	glVertex2f(x0, y1);
+	glVertex2f(x1, y1);
+	glVertex2f(x1, y0);
+	glEnd();
 }
 
 void GraphView::draw()
 {
+	for (auto &base_point : base_points)
+	{
+		glPushMatrix();
+		glTranslatef(base_point.second.base.x, base_point.second.base.y, 0);
+
+		auto it_node = g->nodes.find(base_point.first);
+		if (it_node != g->nodes.end())
+		{
+			font.draw(ssprintf("%s %d", it_node->second.name.c_str(), base_point.second.n));
+		}
+		else
+		{
+			auto &tensor = g->tensors.find(base_point.first);
+			font.draw(ssprintf("%s", base_point.first.c_str()));
+		}
+
+		glPopMatrix();
+	}
+
 	glBindVertexArray(tensors.arr);
 	glBindBuffer(GL_ARRAY_BUFFER, tensors.buf);
 	glColor3f(1, 1, 1);
@@ -172,41 +202,20 @@ void GraphView::draw()
 		}
 	}
 
-	auto it_hovered = base_points.find(hovered_name);
-	if (it_hovered != base_points.end())
-	{
-		glPushMatrix();
-		glTranslatef(0, 0, topmost_point_z + 0.1f);
-
-		glColor4fv(Colors::hovered_field);
-		/*for (auto idx : field_views_of_output.at(hovered_name))
-		{
-			auto &indexes = field_views[idx].ray_indexes;
-			GLint offset = field_views[idx].offset;
-
-			glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[hovered_idx], indexes[hovered_idx + 1] - indexes[hovered_idx]);
-		}*/
-		draw_receptive_field(hovered_name, hovered_idx, hovered_idx + 1);
-
-		auto &hov = it_hovered->second;
-		float x0 = hov.base.x;
-		float x1 = x0 + cell_width;
-		float y0 = hov.base.y + hovered_idx * cell_height;
-		float y1 = y0 + cell_height;
-		glColor4fv(Colors::hovered_pixel);
-		glBegin(GL_QUADS);
-		glVertex2f(x0, y0);
-		glVertex2f(x0, y1);
-		glVertex2f(x1, y1);
-		glVertex2f(x1, y0);
-		glEnd();
-
-		glPopMatrix();
-	}
-
 	auto it_selected = base_points.find(selected_name);
 	if (it_selected != base_points.end())
 	{
+		glPushMatrix();
+		glTranslatef(0, 0, topmost_point_z + 0.5f);
+
+		glColor4fv(Colors::selected_receptive_field);
+		draw_receptive_field(selected_name, selected_beg_pixel, selected_end_pixel);
+
+		glColor4fv(Colors::selected_affected_output);
+		draw_affected_output(selected_name, selected_beg_pixel, selected_end_pixel);
+
+		glPopMatrix();
+
 		float margin = cell_width * 0.3f;
 		auto b = it_selected->second;
 		glColor4fv(Colors::selected_tensor);
@@ -220,18 +229,38 @@ void GraphView::draw()
 
 		if (selected_beg_pixel >= 0 && selected_end_pixel >= 0)
 		{
-			float x0 = b.base.x;
-			float x1 = x0 + cell_width;
-			float y0 = b.base.y + selected_beg_pixel * cell_height;
-			float y1 = b.base.y + selected_end_pixel * cell_height;
 			glColor4fv(Colors::selected_pixel);
-			glBegin(GL_QUADS);
-			glVertex2f(x0, y0);
-			glVertex2f(x0, y1);
-			glVertex2f(x1, y1);
-			glVertex2f(x1, y0);
-			glEnd();
+			draw_pixel_range(b.base, selected_beg_pixel, selected_end_pixel);
 		}
+	}
+
+	auto it_hovered = base_points.find(hovered_name);
+	if (it_hovered != base_points.end())
+	{
+		glPushMatrix();
+		glTranslatef(0, 0, topmost_point_z + 0.1f);
+
+		glColor4fv(Colors::hovered_receptive_field);
+		draw_receptive_field(hovered_name, hovered_idx, hovered_idx + 1);
+
+		glColor4fv(Colors::hovered_affected_output);
+		draw_affected_output(hovered_name, hovered_idx, hovered_idx + 1);
+
+		auto &hov = it_hovered->second;
+		float x0 = hov.base.x;
+		float x1 = x0 + cell_width;
+		float y0 = hov.base.y + hovered_idx * cell_height;
+		float y1 = y0 + cell_height;
+
+		glColor4fv(Colors::hovered_pixel);
+		glBegin(GL_QUADS);
+		glVertex2f(x0, y0);
+		glVertex2f(x0, y1);
+		glVertex2f(x1, y1);
+		glVertex2f(x1, y0);
+		glEnd();
+
+		glPopMatrix();
 	}
 
 #if 0
@@ -273,7 +302,7 @@ void GraphView::draw()
 #endif
 }
 
-void GraphView::draw_receptive_field(const std::string &name, int beg, int end) const
+void GraphView::draw_receptive_field(const std::string &name, int beg, int end, int level) const
 {
 	auto it = field_views_of_output.find(name);
 	if (it == field_views_of_output.end())return;
@@ -288,9 +317,46 @@ void GraphView::draw_receptive_field(const std::string &name, int beg, int end) 
 
 		glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[clamped_beg], indexes[clamped_end] - indexes[clamped_beg]);
 
+		if (!level)
+		{
+			draw_pixel_range(base_points.at(name).base, clamped_beg, clamped_end);
+		}
+
 		auto range = find_input(field_views[idx].ray_field.field, clamped_beg, clamped_end);
 
-		draw_receptive_field(field_views[idx].ray_field.input, range.beg, range.end);
+		// TODO: avoid drawing joined receptive fields twice
+		draw_receptive_field(field_views[idx].ray_field.input, range.beg, range.end, level + 1);
+	}
+}
+
+void GraphView::draw_affected_output(const std::string &name, int beg, int end) const
+{
+	if (end == beg)return;
+
+	auto users = g->forw.find(name);
+
+	for (auto &user : users->second)
+	{
+		auto it = field_views_of_output.find(user);
+		if (it == field_views_of_output.end())
+			continue;
+
+		for(auto idx : it->second)
+		{
+			if (field_views[idx].ray_field.input != name)
+				continue;
+
+			auto &indexes = field_views[idx].ray_indexes;
+			GLint offset = field_views[idx].offset;
+
+			auto range = find_output(field_views[idx].ray_field.field, beg, end);
+
+			glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[range.beg], indexes[range.end] - indexes[range.beg]);
+
+			draw_pixel_range(base_points.at(user).base, range.beg, range.end);
+
+			draw_affected_output(user, range.beg, range.end);
+		}
 	}
 }
 

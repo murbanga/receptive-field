@@ -14,18 +14,35 @@ using namespace std;
 
 Range find_input(const std::vector<FromTo> &field, int beg, int end)
 {
-	// FIXME: binary search
 	Range range = { -1, -1 };
 
 	for (size_t i = 0; i < field.size(); ++i)
 	{
 		if (field[i].from_output <= beg && beg < field[i].to_output)
-			range.beg = field[i].from_input;
+			range.beg = (range.beg > -1 ? min(range.beg, field[i].from_input) : field[i].from_input);
 
 		if (field[i].from_output < end && end <= field[i].to_output)
-			range.end = field[i].to_input;
+			range.end = (range.end > -1 ? max(range.end, field[i].to_input) : field[i].to_input);
 	}
 	
+	assert(range.beg <= range.end);
+
+	return range;
+}
+
+Range find_output(const std::vector<FromTo> &field, int beg, int end)
+{
+	Range range = { -1, -1 };
+
+	for (size_t i = 0; i < field.size(); ++i)
+	{
+		if (field[i].from_input <= beg && beg < field[i].to_input)
+			range.beg = (range.beg > -1 ? min(range.beg, field[i].from_output) : field[i].from_output);
+
+		if (field[i].from_input < end && end <= field[i].to_input)
+			range.end = (range.end > -1 ? max(range.end, field[i].to_output) : field[i].to_output);
+	}
+
 	assert(range.beg <= range.end);
 
 	return range;
@@ -58,6 +75,8 @@ OpType str_to_op_type(const string &name)
 		return OpType::Softmax;
 	if (name == "Reshape")
 		return OpType::Reshape;
+	if (name == "LRN")
+		return OpType::LRN;
 
 	assert(false);
 	return OpType::Undefined;
@@ -259,6 +278,7 @@ vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 	{
 	case OpType::Relu:
 	case OpType::Dropout:
+	case OpType::LRN:
 		//assert(node.inputs.size() == 1);
 		return identity_field(node, dir);
 

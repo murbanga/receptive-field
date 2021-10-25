@@ -360,6 +360,10 @@ void draw_ui(GraphView *view)
 					InputText(a.first.c_str(), &attribute_edit_cache.at(key));
 				}
 			}
+			if (Button("clear selection"))
+			{
+				view->set_selected("");
+			}
 		}
 		else
 		{
@@ -401,7 +405,9 @@ int main(int argc, char **argv)
 
 	io.FontDefault = io.Fonts->AddFontDefault();
 
-	// D:/models/vision/body_analysis/age_gender/models/age_googlenet.onnx
+	//auto graph = Graph::load("D:/models/vision/body_analysis/age_gender/models/age_googlenet.onnx");
+	//GraphView graph_view(&graph, "input");
+
 	auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
 	GraphView graph_view(&graph, "data_0");
 
