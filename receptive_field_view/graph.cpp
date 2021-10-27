@@ -77,6 +77,12 @@ OpType str_to_op_type(const string &name)
 		return OpType::Reshape;
 	if (name == "LRN")
 		return OpType::LRN;
+	if (name == "Transpose")
+		return OpType::Transpose;
+	if (name == "Resize")
+		return OpType::Resize;
+	if (name == "Add")
+		return OpType::Add;
 
 	assert(false);
 	return OpType::Undefined;
@@ -105,6 +111,24 @@ Tensor value_info(const onnx::ValueInfoProto proto)
 	return tensor;
 }
 
+template <typename Iterable>
+vector<string> filter_inputs(OpType op_type, const Iterable inputs)
+{
+	switch (op_type)
+	{
+	case OpType::Add:
+	case OpType::Relu:
+	case OpType::Transpose:
+		return { inputs.begin(), inputs.end() };
+	case OpType::Resize:
+		return { inputs[0] };
+	case OpType::Conv:
+		return { inputs[0] };
+	}
+	assert(false);
+	return {};
+}
+
 Graph Graph::load(const char *filename)
 {
 	ifstream file{ filename, ios::in | ios::binary };
@@ -116,7 +140,7 @@ Graph Graph::load(const char *filename)
 		return {};
 	}
 
-	constexpr int64_t original_version = 15;
+	constexpr int64_t original_version = 13;
 	int64_t version = 15;
 
 	for (auto &i : model.opset_import())
@@ -148,6 +172,21 @@ Graph Graph::load(const char *filename)
 		assert(g.tensors.find(i.name()) == g.tensors.end());
 
 		g.tensors.emplace(i.name(), tensor);
+
+		auto data_type = i.data_type();
+		switch (data_type)
+		{
+		case onnx::TensorProto::INT64:
+		{
+			auto data = onnx::ParseData<int64_t>(&i);
+			g.values.emplace(i.name(), data);
+		}
+		break;
+		default:
+			printf("unsupported data type %d for initializer '%s'\n",
+				data_type, i.name().c_str());
+			break;
+		}
 	}
 
 	for (auto &i : model.graph().input())
@@ -203,7 +242,8 @@ Graph Graph::load(const char *filename)
 			}
 		}
 
-		for (auto &input : n.input())
+		auto filtered_inputs = filter_inputs(node.op_type, n.input());
+		for (auto &input : filtered_inputs)
 		{
 			node.inputs.push_back(input);
 
@@ -227,27 +267,41 @@ Graph Graph::load(const char *filename)
 	return g;
 }
 
+bool is_all_present(const set<string> &visited, const vector<string> &inputs)
+{
+	for (auto &i : inputs)
+	{
+		if (visited.find(i) == visited.end())
+			return false;
+	}
+	return true;
+}
+
 int Graph::walk_forward(const string &beg, Callback f) const
 {
 	assert(forw.find(beg) != forw.end());
 
 	int level = 0;
 	set<string> children = { beg };
+	set<string> visited;
 
 	while (!children.empty())
 	{
 		int ret = f(*this, children, level);
 		if (ret)return ret;
 
+		visited.insert(children.begin(), children.end());
+
 		set<string> next;
 		for(auto &child:children)
 		{
-			if (forw.find(child) != forw.end())
+			auto it_child = forw.find(child);
+			if (it_child != forw.end())
 			{
-				auto next_child = forw.at(child);
-				for (auto &n : next_child)
+				for (auto &n : it_child->second)
 				{
-					next.insert(n);
+					if(is_all_present(visited, nodes.at(n).inputs))
+						next.insert(n);
 				}
 			}
 		}
@@ -279,11 +333,9 @@ vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 	case OpType::Relu:
 	case OpType::Dropout:
 	case OpType::LRN:
-		//assert(node.inputs.size() == 1);
 		return identity_field(node, dir);
 
 	case OpType::Conv:
-		assert(node.inputs.size() == 3);
 		return conv_field(node, dir);
 
 	case OpType::MaxPool:
@@ -296,8 +348,13 @@ vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 	case OpType::GlobalAveragePool:
 		return gapool_field(node, dir);
 
+	case OpType::Resize:
+		return resize_field(node, dir);
+
+	case OpType::Add:
+		return add_field(node, dir);
+
 	default:
-		//assert(false);
 		printf("receptive field for op '%s' not implemented\n", node.op_name.c_str());
 		return {};
 	}
@@ -319,15 +376,15 @@ int Graph::length(const std::string &name, Direction dir) const
 	}
 }
 
-std::vector<Field> Graph::identity_field(const Node &node, Direction dir) const
+std::vector<Field> Graph::identity_field(const Node &node, Direction dir, int input_idx) const
 {
-	int in_length = length(node.inputs[0], dir);
+	int in_length = length(node.inputs[input_idx], dir);
 	int out_length = length(node.name, dir);
 
 	assert(in_length == out_length);
 
 	Field field;
-	field.input = node.inputs[0];
+	field.input = node.inputs[input_idx];
 	field.output = node.name;
 	field.field.reserve(in_length);
 
@@ -434,26 +491,37 @@ std::vector<Field> Graph::concat_field(const Node &node, Direction dir) const
 	if (axis != 2 && axis != 3)
 	{
 		std::vector<Field> ff;
-		for (auto &input : node.inputs)
+		for (int i = 0; i < node.inputs.size(); ++i)
 		{
-			int in_length = length(input, dir);
-			Field f;
-			f.input = input;
-			f.output = node.name;
-			f.field.reserve(in_length);
+			//int in_length = length(input, dir);
+			//Field f;
+			//f.input = input;
+			//f.output = node.name;
+			//f.field.reserve(in_length);
 
-			for (int i = 0; i < in_length; ++i)
-			{
-				f.field.push_back({ i,i + 1, i, i + 1 });
-			}
-
-			ff.push_back(f);
+			//for (int i = 0; i < in_length; ++i)
+			//{
+			//	f.field.push_back({ i,i + 1, i, i + 1 });
+			//}
+			auto f = identity_field(node, dir, i);
+			ff.push_back(f[0]);
 		}
 
 		return ff;
 	}
 	assert(false);
 	return std::vector<Field>();
+}
+
+std::vector<Field> Graph::add_field(const Node &node, Direction dir) const
+{
+	std::vector<Field> fields;
+	for (int i = 0; i < node.inputs.size(); ++i)
+	{
+		auto f = identity_field(node, dir, i);
+		fields.push_back(f[0]);
+	}
+	return fields;
 }
 
 std::vector<Field> Graph::gapool_field(const Node &node, Direction dir) const
@@ -465,4 +533,9 @@ std::vector<Field> Graph::gapool_field(const Node &node, Direction dir) const
 	f.field.push_back({ 0,in_length,0,1 });
 
 	return { f };
+}
+
+std::vector<Field> Graph::resize_field(const Node &node, Direction dir) const
+{
+	return std::vector<Field>();
 }

@@ -21,6 +21,7 @@ struct BasePoint
 {
 	Point base;
 	int n;
+	int level;
 };
 
 struct VertexArray

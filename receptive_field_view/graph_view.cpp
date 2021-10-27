@@ -56,6 +56,10 @@ void GraphView::update_layout()
 	float x = -graph_depth * node_width_margin / 2;
 	float z = 0;
 
+	std::vector<std::vector<int>> rows_heights;
+	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level)
+	{});
+
 	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) 
 	{
 		float row_height = (names.size() - 1) * node_height_margin;
@@ -72,7 +76,7 @@ void GraphView::update_layout()
 		{
 			int n = g.length(name, direction);
 
-			base_points[name] = { {x,y},n };
+			base_points[name] = { {x,y}, n, level };
 			tensor_points.reserve(tensor_points.size() + n * 2 + 2);
 
 			tensor_points.push_back({ x, y });
@@ -97,9 +101,16 @@ void GraphView::update_layout()
 
 			for (auto &field : fields)
 			{
-				auto from = base_points.at(field.input).base;
-				auto to = base_points.at(name).base;
-				auto [points, indexes] = render_field(field, from, to, 0.01f, &z);
+				auto from = base_points.at(field.input);
+				auto to = base_points.at(name);
+
+				assert(from.level < to.level);
+
+				if (from.level < to.level - 1)
+				{
+				}
+
+				auto [points, indexes] = render_field(field, from.base, to.base, 0.01f, &z);
 
 				FieldView view;
 				view.offset = (GLint)fields_points.size();
@@ -334,6 +345,8 @@ void GraphView::draw_affected_output(const std::string &name, int beg, int end) 
 	if (end == beg)return;
 
 	auto users = g->forw.find(name);
+
+	if (users == g->forw.end())return;
 
 	for (auto &user : users->second)
 	{
