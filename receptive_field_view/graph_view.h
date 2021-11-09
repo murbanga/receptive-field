@@ -92,7 +92,7 @@ class GraphView
 	void draw_affected_output(const std::string &name, std::set<std::string> &visited, int beg, int end) const;
 	void draw_pixel_range(const Point &base, int beg, int end) const;
 
-	std::vector<std::vector<int>> compute_layout() const;
+	std::vector<std::vector<int>> get_rows_heights() const;
 	void update_layout();
 
 public:

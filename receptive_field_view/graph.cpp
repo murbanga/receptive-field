@@ -128,6 +128,18 @@ vector<string> filter_inputs(OpType op_type, const Iterable inputs)
 	return {};
 }
 
+//void extract_special_inputs(Graph &g, Node &node, const onnx::NodeProto &proto)
+//{
+//	if (node.op_type == OpType::Resize)
+//	{
+//		auto &roi = proto.input(1);
+//		auto &scale = proto.input(2);
+//		auto &sizes_name = proto.input(3);
+//
+//		auto &sizes = g.values.at(sizes_name);
+//	}
+//}
+
 Graph Graph::load(const char *filename)
 {
 	ifstream file{ filename, ios::in | ios::binary };
@@ -257,6 +269,8 @@ Graph Graph::load(const char *filename)
 			else
 				g.forw.emplace(input, vector<string>{ name });
 		}
+
+		//extract_special_inputs(g, node, n);
 
 		g.nodes.emplace(name, node);
 	}
@@ -530,7 +544,67 @@ std::vector<Field> Graph::gapool_field(const Node &node, Direction dir) const
 	return { f };
 }
 
+function<int(float)> get_nearest_mode(const string &s, bool is_downsample)
+{
+	if (s == "round_prefer_floor")
+	{
+		return [](float x) {
+			if (x == static_cast<int>(x) + 0.5f)
+				return static_cast<int>(floor(x));
+			else
+				return static_cast<int>(round(x));
+		};
+	}
+
+	if (s == "round_prefer_ceil")
+	{
+		return [](float x) {return static_cast<int>(round(x)); };
+	}
+	
+	if (s == "ceil")
+	{
+		return [](float x) {return static_cast<int>(ceil(x)); };
+	}
+	
+	if (s == "floor")
+	{
+		return [](float x) {return static_cast<int>(floor(x)); };
+	}
+
+	assert(false);
+	return [](float) {assert(false); return 0; };
+}
+
 std::vector<Field> Graph::resize_field(const Node &node, Direction dir) const
 {
+	int in_length = length(node.inputs[0], dir);
+	int out_length = length(node.name, dir);
+	if (in_length == out_length)return { identity_field(node, dir, 0) };
+
+	string mode = get<string>(node.attrs.at("mode"));
+
+
+	if (mode == "nearest")
+	{
+		string nearest_mode = get<string>(node.attrs.at("nearest_mode"));
+
+		auto round = get_nearest_mode(nearest_mode, out_length < in_length);
+
+		float scale = (float)in_length / (float)out_length;
+
+		Field f;
+		f.input = node.inputs[0];
+		f.output = node.name;
+
+		for (int i = 0; i < out_length; ++i) {
+			int j = round(i * scale);
+			f.field.push_back({ j, j + 1, i, i + 1 });
+		}
+
+		return { f };
+
+	}
+
+	printf("unsupported resize mode '%s' for node '%s'\n", mode.c_str(), node.name.c_str());
 	return {};
 }

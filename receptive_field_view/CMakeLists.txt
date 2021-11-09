@@ -1,6 +1,16 @@
 
 add_executable(receptive_field_view
-	main.cpp graph.h graph.cpp graph_view.h graph_view.cpp colors.h font.h font.cpp utils.h utils.cpp ../cpp.hint)
+	main.cpp
+	graph.h
+	graph.cpp
+	graph_view.h
+	graph_view.cpp
+	colors.h
+	font.h
+	font.cpp
+	utils.h
+	utils.cpp
+	../cpp.hint)
 
 add_dependencies(receptive_field_view onnx)
 

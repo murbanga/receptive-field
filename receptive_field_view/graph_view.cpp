@@ -55,37 +55,51 @@ GraphView::~GraphView()
 {
 }
 
-vector<vector<int>> GraphView::compute_layout() const
+vector<vector<int>> GraphView::get_rows_heights() const
 {
 	map<string, int> levels;
-	vector<vector<int>> rows_heights;
+	vector<vector<int>> rows_heights(graph_depth);
 
 	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level)
 	{
-		float row_height = (names.size() - 1) * node_height_margin;
-
 		for (auto &name : names)
 		{
-			int n = g.length(name, direction);
-			row_height += (float)n * cell_height;
+			rows_heights[level].push_back(g.length(name, direction));
 		}
 
 		for (auto &name : names)
 		{
 			levels.emplace(name, level);
 
-			auto &inputs = g.back.at(name);
+			auto it = g.back.find(name);
+			if (it == g.back.end())continue;
 
-			for (auto &input : inputs)
+			int height = g.length(name, direction);
+
+			for (auto &input : it->second)
 			{
+				int input_level = levels.at(input);
 
+				// add extra row for skipped connections
+				for (int i = input_level; i < level - 1; ++i)
+				{
+					rows_heights[i].push_back(height);
+				}
 			}
 		}
 
 		return 0;
 	});
 
-	return {};
+	return rows_heights;
+}
+
+template <typename T>
+T sum(const vector<T> &v)
+{
+	T s = 0;
+	for (auto &i : v)s += i;
+	return s;
 }
 
 void GraphView::update_layout()
@@ -100,19 +114,19 @@ void GraphView::update_layout()
 	float x = -graph_depth * node_width_margin / 2;
 	float z = 0;
 
-	vector<vector<int>> rows_heights;
+	vector<vector<int>> rows_heights = get_rows_heights();
 
 	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) 
 	{
-		float row_height = (names.size() - 1) * node_height_margin;
+		/*float row_height = (names.size() - 1) * node_height_margin;
 
 		for (auto &name : names)
 		{
 			int n = g.length(name, direction);
 			row_height += (float)n * cell_height;
-		}
+		}*/
 
-		float y = -row_height / 2;
+		float y = -(sum(rows_heights[level]) * cell_height + (rows_heights.size() - 1) * node_height_margin) / 2;
 
 		for (auto &name : names)
 		{
@@ -143,8 +157,8 @@ void GraphView::update_layout()
 
 			for (auto &field : fields)
 			{
-				auto from = base_points.at(field.input);
-				auto to = base_points.at(name);
+				auto &from = base_points.at(field.input);
+				auto &to = base_points.at(name);
 
 				assert(from.level < to.level);
 
