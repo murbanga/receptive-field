@@ -9,39 +9,83 @@
 
 using namespace std;
 
-void update_va(GLuint arr, GLuint buf, const Point *points, size_t npoints)
+template<>
+void VertexArray::update<Point>(const Point *points, size_t npoints)
 {
 	glBindVertexArray(arr);
 	glBindBuffer(GL_ARRAY_BUFFER, buf);
 	glBufferData(GL_ARRAY_BUFFER, npoints*2*sizeof(float), points, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
+	size = (GLsizei)npoints;
 }
 
-void update_va(GLuint arr, GLuint buf, const Point3f *points, size_t npoints)
+template<>
+void VertexArray::update<Point3f>(const Point3f *points, size_t npoints)
 {
 	glBindVertexArray(arr);
 	glBindBuffer(GL_ARRAY_BUFFER, buf);
 	glBufferData(GL_ARRAY_BUFFER, npoints * 3 * sizeof(float), points, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
+	size = (GLsizei)npoints;
 }
 
-GraphView::GraphView(Graph *g, const std::string &start_node) :g(g), start_node(start_node), font("Courier", 1)
+VertexArray::VertexArray()
 {
-	glGenVertexArrays(1, &tensors.arr);
-	glGenBuffers(1, &tensors.buf);
+	glGenVertexArrays(1, &arr);
+	glGenBuffers(1, &buf);
+}
 
+VertexArray::~VertexArray()
+{
+	glDeleteBuffers(1, &buf);
+	glDeleteVertexArrays(1, &arr);
+}
+
+GraphView::GraphView(Graph *g, const std::string &start_node) :g(g), start_node(start_node), font("Arial", 0.1f)
+{
 	graph_depth = 0;
-	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) {graph_depth = level+1; return 0; });
+	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) {graph_depth = level + 1; return 0; });
 
 	update_layout();
 }
 
 GraphView::~GraphView()
 {
-	glDeleteBuffers(1, &tensors.buf);
-	glDeleteVertexArrays(1, &tensors.arr);
+}
+
+vector<vector<int>> GraphView::compute_layout() const
+{
+	map<string, int> levels;
+	vector<vector<int>> rows_heights;
+
+	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level)
+	{
+		float row_height = (names.size() - 1) * node_height_margin;
+
+		for (auto &name : names)
+		{
+			int n = g.length(name, direction);
+			row_height += (float)n * cell_height;
+		}
+
+		for (auto &name : names)
+		{
+			levels.emplace(name, level);
+
+			auto &inputs = g.back.at(name);
+
+			for (auto &input : inputs)
+			{
+
+			}
+		}
+
+		return 0;
+	});
+
+	return {};
 }
 
 void GraphView::update_layout()
@@ -56,9 +100,7 @@ void GraphView::update_layout()
 	float x = -graph_depth * node_width_margin / 2;
 	float z = 0;
 
-	std::vector<std::vector<int>> rows_heights;
-	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level)
-	{});
+	vector<vector<int>> rows_heights;
 
 	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) 
 	{
@@ -106,10 +148,6 @@ void GraphView::update_layout()
 
 				assert(from.level < to.level);
 
-				if (from.level < to.level - 1)
-				{
-				}
-
 				auto [points, indexes] = render_field(field, from.base, to.base, 0.01f, &z);
 
 				FieldView view;
@@ -138,14 +176,8 @@ void GraphView::update_layout()
 
 	printf("graph size %f x %f\n", max_width, max_level);
 
-	update_va(tensors.arr, tensors.buf, tensor_points.data(), tensor_points.size());
-	tensors.size = (GLsizei)tensor_points.size();
-
-	glGenVertexArrays(1, &fields.arr);
-	glGenBuffers(1, &fields.buf);
-
-	update_va(fields.arr, fields.buf, fields_points.data(), fields_points.size());
-	fields.size = (GLsizei)fields_points.size();
+	tensors.update(tensor_points.data(), tensor_points.size());
+	fields.update(fields_points.data(), fields_points.size());
 }
 
 void GraphView::draw_pixel_range(const Point &base, int beg, int end) const
@@ -165,6 +197,8 @@ void GraphView::draw_pixel_range(const Point &base, int beg, int end) const
 
 void GraphView::draw()
 {
+#if 0 // FIXME: brokes drawing of fields
+	glColor3f(1, 1, 1);
 	for (auto &base_point : base_points)
 	{
 		glPushMatrix();
@@ -183,6 +217,7 @@ void GraphView::draw()
 
 		glPopMatrix();
 	}
+#endif
 
 	glBindVertexArray(tensors.arr);
 	glBindBuffer(GL_ARRAY_BUFFER, tensors.buf);
@@ -216,14 +251,16 @@ void GraphView::draw()
 	auto it_selected = base_points.find(selected_name);
 	if (it_selected != base_points.end())
 	{
+		set<string> receptive_field_visited_cache, affected_output_visited_cache;
+
 		glPushMatrix();
 		glTranslatef(0, 0, topmost_point_z + 0.5f);
 
 		glColor4fv(Colors::selected_receptive_field);
-		draw_receptive_field(selected_name, selected_beg_pixel, selected_end_pixel);
+		draw_receptive_field(selected_name, receptive_field_visited_cache, selected_beg_pixel, selected_end_pixel);
 
 		glColor4fv(Colors::selected_affected_output);
-		draw_affected_output(selected_name, selected_beg_pixel, selected_end_pixel);
+		draw_affected_output(selected_name, affected_output_visited_cache, selected_beg_pixel, selected_end_pixel);
 
 		glPopMatrix();
 
@@ -248,14 +285,16 @@ void GraphView::draw()
 	auto it_hovered = base_points.find(hovered_name);
 	if (it_hovered != base_points.end())
 	{
+		set<string> receptive_field_visited_cache, affected_output_visited_cache;
+
 		glPushMatrix();
 		glTranslatef(0, 0, topmost_point_z + 0.1f);
 
 		glColor4fv(Colors::hovered_receptive_field);
-		draw_receptive_field(hovered_name, hovered_idx, hovered_idx + 1);
+		draw_receptive_field(hovered_name, receptive_field_visited_cache, hovered_idx, hovered_idx + 1);
 
 		glColor4fv(Colors::hovered_affected_output);
-		draw_affected_output(hovered_name, hovered_idx, hovered_idx + 1);
+		draw_affected_output(hovered_name, affected_output_visited_cache, hovered_idx, hovered_idx + 1);
 
 		auto &hov = it_hovered->second;
 		float x0 = hov.base.x;
@@ -313,7 +352,7 @@ void GraphView::draw()
 #endif
 }
 
-void GraphView::draw_receptive_field(const std::string &name, int beg, int end, int level) const
+void GraphView::draw_receptive_field(const string &name, set<string> &visited, int beg, int end, int level) const
 {
 	auto it = field_views_of_output.find(name);
 	if (it == field_views_of_output.end())return;
@@ -336,11 +375,11 @@ void GraphView::draw_receptive_field(const std::string &name, int beg, int end, 
 		auto range = find_input(field_views[idx].ray_field.field, clamped_beg, clamped_end);
 
 		// TODO: avoid drawing joined receptive fields twice
-		draw_receptive_field(field_views[idx].ray_field.input, range.beg, range.end, level + 1);
+		draw_receptive_field(field_views[idx].ray_field.input, visited, range.beg, range.end, level + 1);
 	}
 }
 
-void GraphView::draw_affected_output(const std::string &name, int beg, int end) const
+void GraphView::draw_affected_output(const std::string &name, set<string> &visited, int beg, int end) const
 {
 	if (end == beg)return;
 
@@ -368,7 +407,7 @@ void GraphView::draw_affected_output(const std::string &name, int beg, int end) 
 
 			draw_pixel_range(base_points.at(user).base, range.beg, range.end);
 
-			draw_affected_output(user, range.beg, range.end);
+			draw_affected_output(user, visited, range.beg, range.end);
 		}
 	}
 }

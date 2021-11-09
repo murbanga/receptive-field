@@ -1,0 +1,5 @@
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+#define OP_TYPE_ENUM(f) f(Undefined) f(Conv) f(Relu) f(MaxPool) f(Concat) f(Dropout) f(Constant) f(GlobalAveragePool) f(Flatten) f(Softmax) f(Reshape) f(LRN) f(Transpose) f(Resize) f(Add)
+#define DECL(x)

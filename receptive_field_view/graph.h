@@ -5,24 +5,34 @@
 #include <functional>
 #include <set>
 
+#define OP_TYPE_ENUM(f) \
+	f(Undefined)	\
+	f(Conv)		\
+	f(Relu)		\
+	f(MaxPool)	\
+	f(Concat)	\
+	f(Dropout)	\
+	f(Constant)	\
+	f(GlobalAveragePool)\
+	f(Flatten)	\
+	f(Softmax)	\
+	f(Reshape)	\
+	f(LRN)		\
+	f(Transpose)	\
+	f(Resize)	\
+	f(Add)		\
+
+#define DECL(x)	x,
+
 enum class OpType
 {
-	Undefined,
-	Conv,
-	Relu,
-	MaxPool,
-	Concat,
-	Dropout,
-	Constant,
-	GlobalAveragePool,
-	Flatten,
-	Softmax,
-	Reshape,
-	LRN,
-	Transpose,
-	Resize,
-	Add,
+	OP_TYPE_ENUM(DECL)
 };
+
+#undef DECL
+
+const char* str_from_op_type(OpType op_type);
+OpType str_to_op_type(const std::string &name);
 
 typedef std::variant<int64_t, std::vector<int64_t>, std::string> Attribute;
 typedef std::variant<std::vector<int64_t>, std::vector<int>, std::vector<float>> Value;
@@ -30,7 +40,7 @@ typedef std::variant<std::vector<int64_t>, std::vector<int>, std::vector<float>>
 struct Node
 {
 	std::string name;
-	std::string op_name;
+	//std::string op_name;
 	OpType op_type;
 	std::map<std::string, Attribute> attrs;
 	std::vector<std::string> inputs;
@@ -92,7 +102,7 @@ public:
 	int walk_backward(const std::string &beg, Callback f) const;
 
 	std::vector<Field> receptive_field(const std::string &node, Direction dir) const;
-	int Graph::length(const std::string &name, Direction dir) const;
+	int length(const std::string &name, Direction dir) const;
 private:
 	std::vector<Field> identity_field(const Node &node, Direction dir, int input_idx = 0) const;
 	std::vector<Field> conv_field(const Node &node, Direction dir) const;
@@ -101,4 +111,3 @@ private:
 	std::vector<Field> add_field(const Node &node, Direction dir) const;
 	std::vector<Field> resize_field(const Node &node, Direction dir) const;
 };
-

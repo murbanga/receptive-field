@@ -7,7 +7,7 @@ typedef struct _GLYPHMETRICSFLOAT GLYPHMETRICSFLOAT;
 class Font
 {
 public:
-    Font(const char *family, int size);
+    Font(const char *family, float size);
     ~Font();
 
     void measure(const std::string &s, float &width, float &height);
@@ -18,6 +18,7 @@ private:
 
     bool initialized;
     std::string family;
-    int size;
+    float size;
     GLYPHMETRICSFLOAT *metrics;
+    const int starting_display_list = 10000;
 };

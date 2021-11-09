@@ -55,37 +55,29 @@ bool operator==(const Tensor &a, const Tensor &b)
 
 OpType str_to_op_type(const string &name)
 {
-	if (name == "Conv")
-		return OpType::Conv;
-	if (name == "Relu")
-		return OpType::Relu;
-	if (name == "MaxPool")
-		return OpType::MaxPool;
-	if (name == "Concat")
-		return OpType::Concat;
-	if (name == "Dropout")
-		return OpType::Dropout;
-	if (name == "Constant")
-		return OpType::Constant;
-	if (name == "GlobalAveragePool")
-		return OpType::GlobalAveragePool;
-	if (name == "Flatten")
-		return OpType::Flatten;
-	if (name == "Softmax")
-		return OpType::Softmax;
-	if (name == "Reshape")
-		return OpType::Reshape;
-	if (name == "LRN")
-		return OpType::LRN;
-	if (name == "Transpose")
-		return OpType::Transpose;
-	if (name == "Resize")
-		return OpType::Resize;
-	if (name == "Add")
-		return OpType::Add;
+#define STR_TO_ENUM(x)	if(name == #x)return OpType::x;
+
+	OP_TYPE_ENUM(STR_TO_ENUM);
+
+#undef STR_TO_ENUM
 
 	assert(false);
 	return OpType::Undefined;
+}
+
+const char *str_from_op_type(OpType op_type)
+{
+#define ENUM_TO_STR(x)	case OpType::x: return #x;
+
+	switch (op_type)
+	{
+		OP_TYPE_ENUM(ENUM_TO_STR);
+	}
+
+#undef ENUM_TO_STR
+
+	assert(false);
+	return "Undefined";
 }
 
 Tensor value_info(const onnx::ValueInfoProto proto)
@@ -119,13 +111,20 @@ vector<string> filter_inputs(OpType op_type, const Iterable inputs)
 	case OpType::Add:
 	case OpType::Relu:
 	case OpType::Transpose:
+	case OpType::Concat:
 		return { inputs.begin(), inputs.end() };
+
 	case OpType::Resize:
-		return { inputs[0] };
 	case OpType::Conv:
+	case OpType::MaxPool:
+	case OpType::Dropout:
+	case OpType::GlobalAveragePool:
 		return { inputs[0] };
+
+	default:
+		printf("unsupported op %s\n", str_from_op_type(op_type));
 	}
-	assert(false);
+
 	return {};
 }
 
@@ -182,6 +181,12 @@ Graph Graph::load(const char *filename)
 			g.values.emplace(i.name(), data);
 		}
 		break;
+		case onnx::TensorProto::FLOAT:
+		{
+			auto data = onnx::ParseData<float>(&i);
+			g.values.emplace(i.name(), data);
+		}
+		break;
 		default:
 			printf("unsupported data type %d for initializer '%s'\n",
 				data_type, i.name().c_str());
@@ -218,7 +223,7 @@ Graph Graph::load(const char *filename)
 		Node node;
 
 		node.name = name;
-		node.op_name = n.op_type();
+		//node.op_name = n.op_type();
 		node.op_type = str_to_op_type(n.op_type());
 
 		for (auto &a : n.attribute())
@@ -355,7 +360,7 @@ vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 		return add_field(node, dir);
 
 	default:
-		printf("receptive field for op '%s' not implemented\n", node.op_name.c_str());
+		printf("receptive field for op '%s' not implemented\n", str_from_op_type(node.op_type));
 		return {};
 	}
 }
@@ -493,16 +498,6 @@ std::vector<Field> Graph::concat_field(const Node &node, Direction dir) const
 		std::vector<Field> ff;
 		for (int i = 0; i < node.inputs.size(); ++i)
 		{
-			//int in_length = length(input, dir);
-			//Field f;
-			//f.input = input;
-			//f.output = node.name;
-			//f.field.reserve(in_length);
-
-			//for (int i = 0; i < in_length; ++i)
-			//{
-			//	f.field.push_back({ i,i + 1, i, i + 1 });
-			//}
 			auto f = identity_field(node, dir, i);
 			ff.push_back(f[0]);
 		}
@@ -510,7 +505,7 @@ std::vector<Field> Graph::concat_field(const Node &node, Direction dir) const
 		return ff;
 	}
 	assert(false);
-	return std::vector<Field>();
+	return {};
 }
 
 std::vector<Field> Graph::add_field(const Node &node, Direction dir) const
@@ -537,5 +532,5 @@ std::vector<Field> Graph::gapool_field(const Node &node, Direction dir) const
 
 std::vector<Field> Graph::resize_field(const Node &node, Direction dir) const
 {
-	return std::vector<Field>();
+	return {};
 }

@@ -29,6 +29,12 @@ struct VertexArray
 	GLuint arr = 0;
 	GLuint buf = 0;
 	GLsizei size = 0;
+
+	VertexArray();
+	~VertexArray();
+
+	template <typename T>
+	void update(const T *points, size_t npoints);
 };
 
 struct FieldView
@@ -82,10 +88,11 @@ class GraphView
 	std::pair<std::vector<Point3f>, std::vector<GLsizei>> render_field(const Field &field, const Point &from, const Point &to, float dz, float *z) const;
 	std::vector<Point3f> render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const;
 
-	void draw_receptive_field(const std::string &name, int beg, int end, int level = 0) const;
-	void draw_affected_output(const std::string &name, int beg, int end) const;
+	void draw_receptive_field(const std::string &name, std::set<std::string> &visited, int beg, int end, int level = 0) const;
+	void draw_affected_output(const std::string &name, std::set<std::string> &visited, int beg, int end) const;
 	void draw_pixel_range(const Point &base, int beg, int end) const;
 
+	std::vector<std::vector<int>> compute_layout() const;
 	void update_layout();
 
 public:
