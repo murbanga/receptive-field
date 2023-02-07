@@ -107,8 +107,8 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 				auto [name, end_idx] = view->hit_test(ptx, pty);
 				if (name == drag_name)
 				{
-					int beg = min(drag_idx, end_idx);
-					int end = max(drag_idx, end_idx);
+					int beg = std::min(drag_idx, end_idx);
+					int end = std::max(drag_idx, end_idx);
 					view->set_selected(name, beg, end + 1);
 				}
 			}
@@ -181,8 +181,8 @@ void motion(GLFWwindow *window, double x, double y)
 		auto [name, end_idx] = view->hit_test(ptx, pty);
 		if (name == drag_name)
 		{
-			int beg = min(drag_idx, end_idx);
-			int end = max(drag_idx, end_idx);
+			int beg = std::min(drag_idx, end_idx);
+			int end = std::max(drag_idx, end_idx);
 			view->set_selected(name, beg, end + 1);
 		}
 	}

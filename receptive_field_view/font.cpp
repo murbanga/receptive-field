@@ -1,10 +1,15 @@
 #include "font.h"
 #include <glad/gl.h>
+#ifdef WIN32
 #include <windows.h>
-
+#else
+// FIXME
+#endif
 #include "GLFW/glfw3.h"
 
+#ifdef WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
+#endif
 #include "GLFW/glfw3native.h"
 
 using namespace std;
@@ -27,11 +32,12 @@ void Font::measure(const string &s, float &width, float &height)
 
     width = 0;
     height = 0;
-
+#ifdef WIN32
     for (int i = 0; i < n; ++i) {
         width += metrics[s[i]].gmfCellIncX;
         height = max(height, metrics[s[i]].gmfBlackBoxY);
     }
+#endif
     width *= size;
     height *= size;
 }
@@ -51,6 +57,7 @@ void Font::draw(const string &s)
 
 void Font::init()
 {
+#ifdef WIN32
         auto *window = glfwGetCurrentContext();
         auto win32_window = glfwGetWin32Window(window);
 
@@ -73,5 +80,8 @@ void Font::init()
                 SelectObject(hdc, prev);
                 DeleteObject(font);
         }
+#else
+        // FIXME
+#endif
         initialized = true;
 }

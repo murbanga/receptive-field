@@ -19,6 +19,11 @@ private:
     bool initialized;
     std::string family;
     float size;
+#ifdef WIN32
     GLYPHMETRICSFLOAT *metrics;
+#else
+    // FIXME
+    void *metrics;
+#endif
     const int starting_display_list = 10000;
 };

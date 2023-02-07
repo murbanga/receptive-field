@@ -1,25 +1,37 @@
 #pragma once
+#ifdef WIN32
 #include <windows.h>
+#endif
 #include <vector>
 #include <string>
+#include <stdarg.h>
 
 class Profiler
 {
 public:
 	Profiler()
 	{
+#ifdef WIN32
 		QueryPerformanceFrequency(&freq);
+#endif
 	}
 
 	double time() const
 	{
+#ifdef WIN32
 		LARGE_INTEGER t;
 		QueryPerformanceCounter(&t);
 		return double(t.QuadPart) / double(freq.QuadPart);
+#else
+		// TODO: gettimeofday()
+		return 0;
+#endif
 	}
 
 private:
+#ifdef WIN32
 	LARGE_INTEGER freq;
+#endif
 };
 
 class FpsCounter
