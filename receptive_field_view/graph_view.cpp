@@ -1,5 +1,4 @@
 #include <assert.h>
-
 #include "graph.h"
 #include "graph_view.h"
 
@@ -80,7 +79,7 @@ vector<vector<int>> GraphView::get_rows_heights() const
 			{
 				int input_level = levels.at(input);
 
-				// add extra row for skipped connections
+				// add extra row for skipped connection
 				for (int i = input_level; i < level - 1; ++i)
 				{
 					rows_heights[i].push_back(height);
@@ -118,13 +117,7 @@ void GraphView::update_layout()
 
 	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) 
 	{
-		/*float row_height = (names.size() - 1) * node_height_margin;
-
-		for (auto &name : names)
-		{
-			int n = g.length(name, direction);
-			row_height += (float)n * cell_height;
-		}*/
+		constexpr float dz = 0.01f;
 
 		float y = -(sum(rows_heights[level]) * cell_height + (rows_heights.size() - 1) * node_height_margin) / 2;
 
@@ -162,16 +155,27 @@ void GraphView::update_layout()
 
 				assert(from.level < to.level);
 
-				auto [points, indexes] = render_field(field, from.base, to.base, 0.01f, &z);
+				RenderedField rendered_field;
+
+				if (from.level < to.level - 1)
+				{
+					//Point mid_beg;
+					//Point mid_end;
+					//rendered_field = render_skipped_field(field, from.base, to.base, mid_beg, mid_end, dz, &z);
+				}
+				else
+				{
+					rendered_field = render_field(field, from.base, to.base, dz, &z);
+				}
 
 				FieldView view;
 				view.offset = (GLint)fields_points.size();
 				view.ray_field = field;
-				view.ray_indexes = indexes;
+				view.ray_indexes = rendered_field.indexes;
 				f_views.push_back(view);
 				field_views_of_output[name].push_back(f_views.size() - 1);
 
-				fields_points.insert(fields_points.end(), points.begin(), points.end());
+				fields_points.insert(fields_points.end(), rendered_field.points.begin(), rendered_field.points.end());
 			}
 		}
 
@@ -435,11 +439,11 @@ void GraphView::set_layout(float cell_width, float node_width_margin, float node
 	update_layout();
 }
 
-vector<Point> bezier(const Point &from, const Point &to, int n)
+valarray<Point> bezier(const Point &from, const Point &to, int n)
 {
 	Bezier::Bezier<3> curve({ {from.x, from.y},{(from.x + to.x) / 2,from.y}, {(from.x + to.x) / 2, to.y}, {to.x,to.y} });
 
-	std::vector<Point> points(n + 1);
+	valarray<Point> points(n + 1);
 	points[0] = { from.x, from.y };
 	for (int i = 0; i < n; ++i)
 	{
@@ -449,10 +453,10 @@ vector<Point> bezier(const Point &from, const Point &to, int n)
 	return points;
 }
 
-vector<Point3f> zip(const vector<Point> &left, const vector<Point> &right, float z)
+valarray<Point3f> zip(const valarray<Point> &left, const valarray<Point> &right, float z)
 {
 	assert(left.size() == right.size());
-	vector<Point3f> points{ left.size() + right.size() };
+	valarray<Point3f> points{ left.size() + right.size() };
 	for (int i = 0; i < left.size(); ++i)
 	{
 		points[2 * i + 0] = { left[i].x, left[i].y, z };
@@ -461,7 +465,7 @@ vector<Point3f> zip(const vector<Point> &left, const vector<Point> &right, float
 	return points;
 }
 
-vector<Point3f> GraphView::render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const
+valarray<Point3f> GraphView::render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const
 {
 	Point left_beg = { from.x + cell_width, from.y + ray.from_input * cell_height };
 	Point left_end = { to.x,to.y + ray.from_output * cell_height };
@@ -476,7 +480,10 @@ vector<Point3f> GraphView::render_ray(const Point &from, const Point &to, const 
 	return zip(left, right, z);
 }
 
-pair<vector<Point3f>,vector<GLsizei>> GraphView::render_field(const Field &field, const Point &from, const Point &to, float dz, float *pz) const
+RenderedField GraphView::render_field(
+	const Field &field,
+	const Point &from, const Point &to,
+	float dz, float *pz) const
 {
 	FromTo one;
 	one.from_input = field.field.front().from_input;
@@ -484,8 +491,11 @@ pair<vector<Point3f>,vector<GLsizei>> GraphView::render_field(const Field &field
 	one.to_input = field.field.back().to_input;
 	one.to_output = field.field.back().to_output;
 
-	std::vector<GLsizei> indexes;
-	auto points = render_ray(from, to, one, *pz);
+	vector<GLsizei> indexes;
+
+	auto full_points = render_ray(from, to, one, *pz);
+	vector<Point3f> points(begin(full_points), end(full_points));
+
 	*pz += dz;
 	indexes.push_back((GLsizei)points.size());
 
@@ -493,9 +503,20 @@ pair<vector<Point3f>,vector<GLsizei>> GraphView::render_field(const Field &field
 	{
 		auto r = render_ray(from, to, ray, *pz);
 		*pz += dz;
-		points.insert(points.end(), r.begin(), r.end());
+		points.insert(points.end(), begin(r), end(r));
 		indexes.push_back((GLsizei)points.size());
 	}
+
+	return { points, indexes };
+}
+
+RenderedField GraphView::render_skipped_field(const Field &field, const Point &from, const Point &to, const Point &mid_beg, const Point &mid_end, float dz, float *pz) const
+{
+	auto [points_a, indexes_a] = render_field(field, from, mid_beg, dz, pz);
+	auto [points_b, indexes_b] = render_field(field, mid_end, to, dz, pz);
+
+	vector<Point3f> points;
+	vector<GLsizei> indexes;
 
 	return { points, indexes };
 }

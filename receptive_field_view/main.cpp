@@ -408,11 +408,11 @@ int main(int argc, char **argv)
 	//auto graph = Graph::load("D:/models/vision/body_analysis/age_gender/models/age_googlenet.onnx");
 	//GraphView graph_view(&graph, "input");
 
-	//auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
-	//GraphView graph_view(&graph, "data_0");
+	auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
+	GraphView graph_view(&graph, "data_0");
 
-	auto graph = Graph::load("C:/fastprojects/recogni/nac/src/tests/unet-weight1-256x256/model.onnx");
-	GraphView graph_view(&graph, "left_rgb/image");
+	//auto graph = Graph::load("C:/fastprojects/recogni/nac/src/tests/unet-weight1-256x256/model.onnx");
+	//GraphView graph_view(&graph, "left_rgb/image");
 
 	glfwSetWindowUserPointer(window, &graph_view);
 

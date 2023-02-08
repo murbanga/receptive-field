@@ -1,5 +1,7 @@
 #pragma once
 #include <glad/gl.h>
+#include <valarray>
+
 #include "font.h"
 
 class Graph;
@@ -44,6 +46,12 @@ struct FieldView
 	std::vector<GLsizei> ray_indexes;
 };
 
+struct RenderedField
+{
+	std::vector<Point3f> points;
+	std::vector<GLsizei> indexes;
+};
+
 struct Selected
 {
 	std::string name;
@@ -85,8 +93,16 @@ class GraphView
 	std::string hovered_name;
 	int hovered_idx = -1;
 
-	std::pair<std::vector<Point3f>, std::vector<GLsizei>> render_field(const Field &field, const Point &from, const Point &to, float dz, float *z) const;
-	std::vector<Point3f> render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const;
+	RenderedField render_field(const Field &field,
+		const Point &from, const Point &to,
+		float dz, float *z) const;
+
+	RenderedField render_skipped_field(const Field &field,
+		const Point &from, const Point &to,
+		const Point &mid_beg, const Point &mid_end,
+		float dz, float *z) const;
+	
+	std::valarray<Point3f> render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const;
 
 	void draw_receptive_field(const std::string &name, std::set<std::string> &visited, int beg, int end, int level = 0) const;
 	void draw_affected_output(const std::string &name, std::set<std::string> &visited, int beg, int end) const;

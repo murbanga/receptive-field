@@ -579,10 +579,10 @@ std::vector<Field> Graph::resize_field(const Node &node, Direction dir) const
 {
 	int in_length = length(node.inputs[0], dir);
 	int out_length = length(node.name, dir);
+
 	if (in_length == out_length)return { identity_field(node, dir, 0) };
 
 	string mode = get<string>(node.attrs.at("mode"));
-
 
 	if (mode == "nearest")
 	{
