@@ -4,14 +4,15 @@ cmake_policy(SET CMP0091 NEW)
 
 project(receptive_field)
 
-add_definitions(-Dprotobuf_BUILD_TESTS=OFF)
-add_definitions(-DONNX_ML=1)
-
-set(BUILD_GMOCK OFF)
+#set(BUILD_GMOCK OFF)
 set(INSTALL_GTEST OFF)
 set(ONNX_BUILD_TESTS OFF)
 #set(ONNX_USE_LITE_PROTO ON)
 #set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${CMAKE_BINARY_DIR}/protobuf/cmake/protoc.exe)
+set(GLFW_BUILD_DOCS OFF)
+
+add_definitions(-Dprotobuf_BUILD_TESTS=OFF)
+add_definitions(-DONNX_ML=1)
 
 add_subdirectory(protobuf/cmake)
 add_subdirectory(onnx)
@@ -53,5 +54,3 @@ include_directories(
 	glfw/deps)
 
 add_subdirectory(receptive_field_view)
-
-message(Protobuf_PROTOC_EXECUTABLE=${Protobuf_PROTOC_EXECUTABLE})

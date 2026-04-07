@@ -5,6 +5,7 @@
 #include <functional>
 #include <set>
 
+// clang-format off
 #define OP_TYPE_ENUM(f) \
 	f(Undefined)	\
 	f(Conv)		\
@@ -21,8 +22,25 @@
 	f(Transpose)	\
 	f(Resize)	\
 	f(Add)		\
+	f(Sub)		\
+	f(Mul)		\
+	f(Identity)	\
+	f(Unsqueeze)	\
+	f(Cast)		\
+	f(Gather)	\
+	f(ReduceMean)	\
+	f(Pow)		\
+	f(Sqrt)		\
+	f(Div)		\
+	f(MatMul)	\
+	f(Neg)		\
+	f(Slice)	\
+	f(Erf)		\
+	f(Where)	\
 
-#define DECL(x)	x,
+// clang-format on
+
+#define DECL(x) x,
 
 enum class OpType
 {
@@ -31,8 +49,8 @@ enum class OpType
 
 #undef DECL
 
-const char* str_from_op_type(OpType op_type);
-OpType str_to_op_type(const std::string &name);
+const char *str_from_op_type(OpType op_type);
+OpType str_to_op_type(const std::string &name, bool is_assert = true);
 
 typedef std::variant<int64_t, std::vector<int64_t>, std::string> Attribute;
 typedef std::variant<std::vector<int64_t>, std::vector<int>, std::vector<float>> Value;
@@ -40,7 +58,7 @@ typedef std::variant<std::vector<int64_t>, std::vector<int>, std::vector<float>>
 struct Node
 {
 	std::string name;
-	//std::string op_name;
+	// std::string op_name;
 	OpType op_type;
 	std::map<std::string, Attribute> attrs;
 	std::vector<std::string> inputs;
@@ -84,11 +102,11 @@ enum class Direction
 	ByColumns = 1,
 };
 
-bool operator == (const Tensor &a, const Tensor &b);
+bool operator==(const Tensor &a, const Tensor &b);
 
 class Graph
 {
-public:
+	public:
 	typedef std::function<int(const Graph &g, const std::set<std::string> &names, int level)> Callback;
 
 	std::map<std::string, Node> nodes;
@@ -103,7 +121,8 @@ public:
 
 	std::vector<Field> receptive_field(const std::string &node, Direction dir) const;
 	int length(const std::string &name, Direction dir) const;
-private:
+
+	private:
 	std::vector<Field> identity_field(const Node &node, Direction dir, int input_idx = 0) const;
 	std::vector<Field> conv_field(const Node &node, Direction dir) const;
 	std::vector<Field> concat_field(const Node &node, Direction dir) const;

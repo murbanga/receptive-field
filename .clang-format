@@ -1,0 +1,13 @@
+Language: Cpp
+IndentWidth: 8
+UseTab: ForIndentation
+PointerAlignment: Right
+ColumnLimit: 120
+SortIncludes: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterEnum: true
+  AfterFunction: true
+  AfterClass: true
+  AfterStruct: true
+AccessModifierOffset: 0

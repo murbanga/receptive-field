@@ -1,4 +1,5 @@
 #ifdef WIN32
+#define NOMINMAX
 #include <Windows.h>
 #endif
 
@@ -14,6 +15,7 @@
 #include "graph.h"
 #include "graph_view.h"
 #include "utils.h"
+#include "colors.h"
 
 enum class OperatorMode
 {
@@ -236,7 +238,11 @@ void display(GLFWwindow *window, GraphView *view)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	glClearColor(0.1f, 0.1f, 0.1f, 1);
+	glClearColor(
+		Colors::background_color[0],
+		Colors::background_color[1],
+		Colors::background_color[2],
+		Colors::background_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 #if 0
@@ -408,11 +414,14 @@ int main(int argc, char **argv)
 	//auto graph = Graph::load("D:/models/vision/body_analysis/age_gender/models/age_googlenet.onnx");
 	//GraphView graph_view(&graph, "input");
 
-	auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
-	GraphView graph_view(&graph, "data_0");
+	//auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
+	//GraphView graph_view(&graph, "data_0");
 
 	//auto graph = Graph::load("C:/fastprojects/recogni/nac/src/tests/unet-weight1-256x256/model.onnx");
 	//GraphView graph_view(&graph, "left_rgb/image");
+
+	auto graph = Graph::load("D:/tmp/gptneox_Opset16.onnx");
+	GraphView graph_view(&graph, "left_rgb/image");
 
 	glfwSetWindowUserPointer(window, &graph_view);
 
