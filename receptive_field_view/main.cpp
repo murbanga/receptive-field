@@ -60,20 +60,19 @@ void unproj(double x, double y, double &objx, double &objy)
 	gluUnProject(x, viewport[3] - y, 0, model, proj, viewport, &objx, &objy, &objz);
 }
 
-void key(GLFWwindow *window, int key, int scancode, int action, int flags)
-{}
+void key(GLFWwindow *window, int key, int scancode, int action, int flags) {}
 
 void mouse(GLFWwindow *window, int button, int state, int flags)
 {
 	ImGuiIO &io = ImGui::GetIO();
-	if (io.WantCaptureMouse)return;
+	if (io.WantCaptureMouse)
+		return;
 
 	GraphView *view = reinterpret_cast<GraphView *>(glfwGetWindowUserPointer(window));
 
 	switch (button) {
 	case GLFW_MOUSE_BUTTON_LEFT:
-		if (state == GLFW_PRESS)
-		{
+		if (state == GLFW_PRESS) {
 			double x, y;
 			glfwGetCursorPos(window, &x, &y);
 
@@ -81,25 +80,19 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 			unproj(x, y, ptx, pty);
 
 			auto [name, idx] = view->hit_test(ptx, pty);
-			if (!name.empty() && idx > -1)
-			{
+			if (!name.empty() && idx > -1) {
 				drag_mode = DragMode::SelectingPixels;
 				drag_name = name;
 				drag_idx = idx;
-			}
-			else
-			{
+			} else {
 				drag_mode = DragMode::Panning;
 				drag_startx = x;
 				drag_starty = y;
 				drag_start_modelx = modelx;
 				drag_start_modely = modely;
 			}
-		}
-		else if (state == GLFW_RELEASE)
-		{
-			if (drag_mode == DragMode::SelectingPixels)
-			{
+		} else if (state == GLFW_RELEASE) {
+			if (drag_mode == DragMode::SelectingPixels) {
 				double x, y;
 				glfwGetCursorPos(window, &x, &y);
 
@@ -107,8 +100,7 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 				unproj(x, y, ptx, pty);
 
 				auto [name, end_idx] = view->hit_test(ptx, pty);
-				if (name == drag_name)
-				{
+				if (name == drag_name) {
 					int beg = std::min(drag_idx, end_idx);
 					int end = std::max(drag_idx, end_idx);
 					view->set_selected(name, beg, end + 1);
@@ -120,8 +112,7 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 		break;
 
 	case GLFW_MOUSE_BUTTON_RIGHT:
-		if (state == GLFW_PRESS)
-		{
+		if (state == GLFW_PRESS) {
 			/*double x, y;
 			glfwGetCursorPos(window, &x, &y);
 			double ptx, pty;
@@ -129,9 +120,9 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 			Point mouse{ static_cast<float>(ptx),static_cast<float>(pty) };
 			auto [nearest, i] = fractal.nearest(mouse);
 			if (i >= 0 && distance(nearest, mouse) < point_selection_max_distance_px * last_pixel_size &&
-				operator_mode == OperatorMode::Constructing)
+			        operator_mode == OperatorMode::Constructing)
 			{
-				fractal.model.erase(fractal.model.begin() + i);
+			        fractal.model.erase(fractal.model.begin() + i);
 			}*/
 		}
 		break;
@@ -142,14 +133,12 @@ void mouse(GLFWwindow *window, int button, int state, int flags)
 void scroll(GLFWwindow *window, double xscroll, double yscroll)
 {
 	ImGuiIO &io = ImGui::GetIO();
-	if (io.WantCaptureMouse)return;
+	if (io.WantCaptureMouse)
+		return;
 
-	if (yscroll > 0)
-	{
+	if (yscroll > 0) {
 		zoom /= 1.05;
-	}
-	else
-	{
+	} else {
 		zoom *= 1.05;
 	}
 	glfwPostEmptyEvent();
@@ -161,34 +150,26 @@ void motion(GLFWwindow *window, double x, double y)
 	double ptx, pty;
 	unproj(x, y, ptx, pty);
 
-	switch (drag_mode)
-	{
-	case DragMode::Disabled:
-	{
+	switch (drag_mode) {
+	case DragMode::Disabled: {
 		auto [name, idx] = view->hit_test(ptx, pty);
 		view->set_hovered(name, idx);
-	}
-	break;
-	case DragMode::Panning:
-	{
+	} break;
+	case DragMode::Panning: {
 		double startx, starty;
 		unproj(drag_startx, drag_starty, startx, starty);
 
 		modelx = drag_start_modelx + startx - ptx;
 		modely = drag_start_modely + starty - pty;
-	}
-	break;
-	case DragMode::SelectingPixels:
-	{
+	} break;
+	case DragMode::SelectingPixels: {
 		auto [name, end_idx] = view->hit_test(ptx, pty);
-		if (name == drag_name)
-		{
+		if (name == drag_name) {
 			int beg = std::min(drag_idx, end_idx);
 			int end = std::max(drag_idx, end_idx);
 			view->set_selected(name, beg, end + 1);
 		}
-	}
-	break;
+	} break;
 	}
 }
 
@@ -210,8 +191,7 @@ void display(GLFWwindow *window, GraphView *view)
 
 	if (ar < model_ar) {
 		model_height = model_width / ar;
-	}
-	else {
+	} else {
 		model_width = ar * model_height;
 	}
 
@@ -238,11 +218,8 @@ void display(GLFWwindow *window, GraphView *view)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	glClearColor(
-		Colors::background_color[0],
-		Colors::background_color[1],
-		Colors::background_color[2],
-		Colors::background_color[3]);
+	glClearColor(Colors::background_color[0], Colors::background_color[1], Colors::background_color[2],
+	             Colors::background_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 #if 0
@@ -280,19 +257,16 @@ void glfw_error_callback(int error, const char *description)
 
 std::string attribute_to_string(const Attribute &a)
 {
-	switch(a.index())
-	{
+	switch (a.index()) {
 	case 0: // int64_t
 	{
 		auto v = std::get<int64_t>(a);
 		return std::to_string(v);
 	}
-	case 1:
-	{
+	case 1: {
 		auto vec = std::get<std::vector<int64_t>>(a);
 		std::string s;
-		for (auto &v : vec)
-		{
+		for (auto &v : vec) {
 			s += std::to_string(v) + ", ";
 		}
 		return s;
@@ -311,15 +285,13 @@ static double current_fps = 0;
 void draw_ui(GraphView *view)
 {
 	using namespace ImGui;
-	if (Begin("settings"))
-	{
+	if (Begin("settings")) {
 		Text("%.2f fps", current_fps);
-		//Button("reset zoom and pos");
-		if (Checkbox("Field each pixel", &per_pixel_field))
-		{
+		// Button("reset zoom and pos");
+		if (Checkbox("Field each pixel", &per_pixel_field)) {
 			view->set_draw_field_per_pixel(per_pixel_field);
 		}
-		
+
 		Separator();
 		Text("Layout");
 
@@ -332,47 +304,39 @@ void draw_ui(GraphView *view)
 		is_update_layout |= SliderFloat("Node width margin", &nwm, 0.001f, 10.0f);
 		is_update_layout |= SliderFloat("Node height margin", &nhm, 0.001f, 10.0f);
 
-		if (is_update_layout)
-		{
+		if (is_update_layout) {
 			view->set_layout(cw, nwm, nhm);
 		}
 	}
 	End();
 
-	if (Begin("selected"))
-	{
+	if (Begin("selected")) {
 		auto *graph = view->graph();
 		auto selected = view->selected();
-		if(!selected.name.empty())
-		{
+		if (!selected.name.empty()) {
 			const Tensor &tensor = graph->tensors.at(selected.name);
 			Text("%s", selected.name.c_str());
-			Text("%dx%dx%dx%d, %s %d-%d", tensor.n, tensor.channel, tensor.height, tensor.width, view->dir().c_str(), selected.beg, selected.end);
+			Text("%dx%dx%dx%d, %s %d-%d", tensor.n, tensor.channel, tensor.height, tensor.width,
+			     view->dir().c_str(), selected.beg, selected.end);
 			auto it_node = graph->nodes.find(selected.name);
-			if (it_node != graph->nodes.end())
-			{
+			if (it_node != graph->nodes.end()) {
 				Separator();
 				Text("%s", str_from_op_type(it_node->second.op_type));
 				Separator();
 				Text("attributes");
 
-				for (auto &a : it_node->second.attrs)
-				{
+				for (auto &a : it_node->second.attrs) {
 					std::string key = selected.name + "_" + a.first;
-					if (attribute_edit_cache.find(key) == attribute_edit_cache.end())
-					{
+					if (attribute_edit_cache.find(key) == attribute_edit_cache.end()) {
 						attribute_edit_cache[key] = attribute_to_string(a.second);
 					}
 					InputText(a.first.c_str(), &attribute_edit_cache.at(key));
 				}
 			}
-			if (Button("clear selection"))
-			{
+			if (Button("clear selection")) {
 				view->set_selected("");
 			}
-		}
-		else
-		{
+		} else {
 			Text("Nothing selected");
 		}
 	}
@@ -381,6 +345,14 @@ void draw_ui(GraphView *view)
 
 int main(int argc, char **argv)
 {
+	std::string filename;
+
+	for (int i = 1; i < argc; ++i) {
+		if (!strcmp(argv[i], "-onnx")) {
+			filename = argv[++i];
+		}
+	}
+
 	glfwSetErrorCallback(glfw_error_callback);
 	if (!glfwInit())
 		return 1;
@@ -404,31 +376,21 @@ int main(int argc, char **argv)
 
 	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
-	//ImGui::StyleColorsClassic();
+	// ImGui::StyleColorsClassic();
 
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init();
 
 	io.FontDefault = io.Fonts->AddFontDefault();
 
-	//auto graph = Graph::load("D:/models/vision/body_analysis/age_gender/models/age_googlenet.onnx");
-	//GraphView graph_view(&graph, "input");
-
-	//auto graph = Graph::load("C:/temp/squeezenet1.0-3.onnx");
-	//GraphView graph_view(&graph, "data_0");
-
-	//auto graph = Graph::load("C:/fastprojects/recogni/nac/src/tests/unet-weight1-256x256/model.onnx");
-	//GraphView graph_view(&graph, "left_rgb/image");
-
-	auto graph = Graph::load("D:/tmp/gptneox_Opset16.onnx");
+	auto graph = Graph::load(filename.c_str());
 	GraphView graph_view(&graph, "left_rgb/image");
 
 	glfwSetWindowUserPointer(window, &graph_view);
 
 	FpsCounter counter(10);
 
-	while (!glfwWindowShouldClose(window))
-	{
+	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();

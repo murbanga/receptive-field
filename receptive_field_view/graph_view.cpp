@@ -8,19 +8,17 @@
 
 using namespace std;
 
-template<>
-void VertexArray::update<Point>(const Point *points, size_t npoints)
+template <> void VertexArray::update<Point>(const Point *points, size_t npoints)
 {
 	glBindVertexArray(arr);
 	glBindBuffer(GL_ARRAY_BUFFER, buf);
-	glBufferData(GL_ARRAY_BUFFER, npoints*2*sizeof(float), points, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, npoints * 2 * sizeof(float), points, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
 	size = (GLsizei)npoints;
 }
 
-template<>
-void VertexArray::update<Point3f>(const Point3f *points, size_t npoints)
+template <> void VertexArray::update<Point3f>(const Point3f *points, size_t npoints)
 {
 	glBindVertexArray(arr);
 	glBindBuffer(GL_ARRAY_BUFFER, buf);
@@ -42,46 +40,43 @@ VertexArray::~VertexArray()
 	glDeleteVertexArrays(1, &arr);
 }
 
-GraphView::GraphView(Graph *g, const std::string &start_node) :g(g), start_node(start_node), font("Arial", 0.1f)
+GraphView::GraphView(Graph *g, const std::string &start_node) : g(g), start_node(start_node), font("Arial", 0.1f)
 {
 	graph_depth = 0;
-	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) {graph_depth = level + 1; return 0; });
+	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) {
+		graph_depth = level + 1;
+		return 0;
+	});
 
 	update_layout();
 }
 
-GraphView::~GraphView()
-{
-}
+GraphView::~GraphView() {}
 
 vector<vector<int>> GraphView::get_rows_heights() const
 {
 	map<string, int> levels;
 	vector<vector<int>> rows_heights(graph_depth);
 
-	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level)
-	{
-		for (auto &name : names)
-		{
+	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) {
+		for (auto &name : names) {
 			rows_heights[level].push_back(g.length(name, direction));
 		}
 
-		for (auto &name : names)
-		{
+		for (auto &name : names) {
 			levels.emplace(name, level);
 
 			auto it = g.back.find(name);
-			if (it == g.back.end())continue;
+			if (it == g.back.end())
+				continue;
 
 			int height = g.length(name, direction);
 
-			for (auto &input : it->second)
-			{
+			for (auto &input : it->second) {
 				int input_level = levels.at(input);
 
 				// add extra row for skipped connection
-				for (int i = input_level; i < level - 1; ++i)
-				{
+				for (int i = input_level; i < level - 1; ++i) {
 					rows_heights[i].push_back(height);
 				}
 			}
@@ -93,11 +88,11 @@ vector<vector<int>> GraphView::get_rows_heights() const
 	return rows_heights;
 }
 
-template <typename T>
-T sum(const vector<T> &v)
+template <typename T> T sum(const vector<T> &v)
 {
 	T s = 0;
-	for (auto &i : v)s += i;
+	for (auto &i : v)
+		s += i;
 	return s;
 }
 
@@ -115,32 +110,30 @@ void GraphView::update_layout()
 
 	vector<vector<int>> rows_heights = get_rows_heights();
 
-	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) 
-	{
+	g->walk_forward(start_node, [&](const Graph &g, const set<string> &names, int level) {
 		constexpr float dz = 0.01f;
 
-		float y = -(sum(rows_heights[level]) * cell_height + (rows_heights.size() - 1) * node_height_margin) / 2;
+		float y =
+		    -(sum(rows_heights[level]) * cell_height + (rows_heights.size() - 1) * node_height_margin) / 2;
 
-		for (auto &name : names)
-		{
+		for (auto &name : names) {
 			int n = g.length(name, direction);
 
-			base_points[name] = { {x,y}, n, level };
+			base_points[name] = {{x, y}, n, level};
 			tensor_points.reserve(tensor_points.size() + n * 2 + 2);
 
-			tensor_points.push_back({ x, y });
-			tensor_points.push_back({ x + cell_width, y });
+			tensor_points.push_back({x, y});
+			tensor_points.push_back({x + cell_width, y});
 
-			for (int i = 0; i < n; ++i)
-			{
-				tensor_points.push_back({ x, y });
-				tensor_points.push_back({ x, y + cell_height });
+			for (int i = 0; i < n; ++i) {
+				tensor_points.push_back({x, y});
+				tensor_points.push_back({x, y + cell_height});
 
-				tensor_points.push_back({ x, y + cell_height });
-				tensor_points.push_back({ x + cell_width,y + cell_height });
+				tensor_points.push_back({x, y + cell_height});
+				tensor_points.push_back({x + cell_width, y + cell_height});
 
-				tensor_points.push_back({ x + cell_width, y + cell_height });
-				tensor_points.push_back({ x + cell_width, y });
+				tensor_points.push_back({x + cell_width, y + cell_height});
+				tensor_points.push_back({x + cell_width, y});
 
 				y += cell_height;
 			}
@@ -148,8 +141,7 @@ void GraphView::update_layout()
 
 			auto fields = g.receptive_field(name, direction);
 
-			for (auto &field : fields)
-			{
+			for (auto &field : fields) {
 				auto &from = base_points.at(field.input);
 				auto &to = base_points.at(name);
 
@@ -157,14 +149,12 @@ void GraphView::update_layout()
 
 				RenderedField rendered_field;
 
-				if (from.level < to.level - 1)
-				{
-					//Point mid_beg;
-					//Point mid_end;
-					//rendered_field = render_skipped_field(field, from.base, to.base, mid_beg, mid_end, dz, &z);
-				}
-				else
-				{
+				if (from.level < to.level - 1) {
+					// Point mid_beg;
+					// Point mid_end;
+					// rendered_field = render_skipped_field(field, from.base, to.base, mid_beg,
+					// mid_end, dz, &z);
+				} else {
 					rendered_field = render_field(field, from.base, to.base, dz, &z);
 				}
 
@@ -175,7 +165,8 @@ void GraphView::update_layout()
 				f_views.push_back(view);
 				field_views_of_output[name].push_back(f_views.size() - 1);
 
-				fields_points.insert(fields_points.end(), rendered_field.points.begin(), rendered_field.points.end());
+				fields_points.insert(fields_points.end(), rendered_field.points.begin(),
+				                     rendered_field.points.end());
 			}
 		}
 
@@ -183,7 +174,7 @@ void GraphView::update_layout()
 		max_level = max(max_level, x);
 
 		x += node_width_margin;
-		
+
 		return 0;
 	});
 
@@ -246,10 +237,8 @@ void GraphView::draw()
 	glBindVertexArray(fields.arr);
 	glBindBuffer(GL_ARRAY_BUFFER, fields.buf);
 
-	if (is_draw_field_per_pixel)
-	{
-		for (auto &field_view : field_views)
-		{
+	if (is_draw_field_per_pixel) {
+		for (auto &field_view : field_views) {
 			auto &indexes = field_view.ray_indexes;
 			size_t n = indexes.size();
 			GLint offset = field_view.offset;
@@ -257,28 +246,26 @@ void GraphView::draw()
 			GLsizei size = indexes[n - 1] - indexes[0];
 			glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[0], size);
 		}
-	}
-	else
-	{
-		for (auto &field : field_views)
-		{
+	} else {
+		for (auto &field : field_views) {
 			glDrawArrays(GL_TRIANGLE_STRIP, field.offset, field.ray_indexes[0]);
 		}
 	}
 
 	auto it_selected = base_points.find(selected_name);
-	if (it_selected != base_points.end())
-	{
+	if (it_selected != base_points.end()) {
 		set<string> receptive_field_visited_cache, affected_output_visited_cache;
 
 		glPushMatrix();
 		glTranslatef(0, 0, topmost_point_z + 0.5f);
 
 		glColor4fv(Colors::selected_receptive_field);
-		draw_receptive_field(selected_name, receptive_field_visited_cache, selected_beg_pixel, selected_end_pixel);
+		draw_receptive_field(selected_name, receptive_field_visited_cache, selected_beg_pixel,
+		                     selected_end_pixel);
 
 		glColor4fv(Colors::selected_affected_output);
-		draw_affected_output(selected_name, affected_output_visited_cache, selected_beg_pixel, selected_end_pixel);
+		draw_affected_output(selected_name, affected_output_visited_cache, selected_beg_pixel,
+		                     selected_end_pixel);
 
 		glPopMatrix();
 
@@ -293,16 +280,14 @@ void GraphView::draw()
 		glVertex2f(b.base.x + cell_width + margin, b.base.y - margin);
 		glEnd();
 
-		if (selected_beg_pixel >= 0 && selected_end_pixel >= 0)
-		{
+		if (selected_beg_pixel >= 0 && selected_end_pixel >= 0) {
 			glColor4fv(Colors::selected_pixel);
 			draw_pixel_range(b.base, selected_beg_pixel, selected_end_pixel);
 		}
 	}
 
 	auto it_hovered = base_points.find(hovered_name);
-	if (it_hovered != base_points.end())
-	{
+	if (it_hovered != base_points.end()) {
 		set<string> receptive_field_visited_cache, affected_output_visited_cache;
 
 		glPushMatrix();
@@ -373,20 +358,20 @@ void GraphView::draw()
 void GraphView::draw_receptive_field(const string &name, set<string> &visited, int beg, int end, int level) const
 {
 	auto it = field_views_of_output.find(name);
-	if (it == field_views_of_output.end())return;
+	if (it == field_views_of_output.end())
+		return;
 
-	for (auto idx : it->second)
-	{
+	for (auto idx : it->second) {
 		auto &indexes = field_views[idx].ray_indexes;
 		GLint offset = field_views[idx].offset;
 
 		int clamped_beg = max(0, beg);
 		int clamped_end = min((int)indexes.size() - 1, end);
 
-		glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[clamped_beg], indexes[clamped_end] - indexes[clamped_beg]);
+		glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[clamped_beg],
+		             indexes[clamped_end] - indexes[clamped_beg]);
 
-		if (!level)
-		{
+		if (!level) {
 			draw_pixel_range(base_points.at(name).base, clamped_beg, clamped_end);
 		}
 
@@ -399,20 +384,20 @@ void GraphView::draw_receptive_field(const string &name, set<string> &visited, i
 
 void GraphView::draw_affected_output(const std::string &name, set<string> &visited, int beg, int end) const
 {
-	if (end == beg)return;
+	if (end == beg)
+		return;
 
 	auto users = g->forw.find(name);
 
-	if (users == g->forw.end())return;
+	if (users == g->forw.end())
+		return;
 
-	for (auto &user : users->second)
-	{
+	for (auto &user : users->second) {
 		auto it = field_views_of_output.find(user);
 		if (it == field_views_of_output.end())
 			continue;
 
-		for(auto idx : it->second)
-		{
+		for (auto idx : it->second) {
 			if (field_views[idx].ray_field.input != name)
 				continue;
 
@@ -421,7 +406,8 @@ void GraphView::draw_affected_output(const std::string &name, set<string> &visit
 
 			auto range = find_output(field_views[idx].ray_field.field, beg, end);
 
-			glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[range.beg], indexes[range.end] - indexes[range.beg]);
+			glDrawArrays(GL_TRIANGLE_STRIP, offset + indexes[range.beg],
+			             indexes[range.end] - indexes[range.beg]);
 
 			draw_pixel_range(base_points.at(user).base, range.beg, range.end);
 
@@ -441,14 +427,14 @@ void GraphView::set_layout(float cell_width, float node_width_margin, float node
 
 valarray<Point> bezier(const Point &from, const Point &to, int n)
 {
-	Bezier::Bezier<3> curve({ {from.x, from.y},{(from.x + to.x) / 2,from.y}, {(from.x + to.x) / 2, to.y}, {to.x,to.y} });
+	Bezier::Bezier<3> curve(
+	    {{from.x, from.y}, {(from.x + to.x) / 2, from.y}, {(from.x + to.x) / 2, to.y}, {to.x, to.y}});
 
 	valarray<Point> points(n + 1);
-	points[0] = { from.x, from.y };
-	for (int i = 0; i < n; ++i)
-	{
+	points[0] = {from.x, from.y};
+	for (int i = 0; i < n; ++i) {
 		auto pt = curve.valueAt(float(i + 1) / n);
-		points[i + 1] = { pt.x,pt.y };
+		points[i + 1] = {pt.x, pt.y};
 	}
 	return points;
 }
@@ -456,34 +442,30 @@ valarray<Point> bezier(const Point &from, const Point &to, int n)
 valarray<Point3f> zip(const valarray<Point> &left, const valarray<Point> &right, float z)
 {
 	assert(left.size() == right.size());
-	valarray<Point3f> points{ left.size() + right.size() };
-	for (int i = 0; i < left.size(); ++i)
-	{
-		points[2 * i + 0] = { left[i].x, left[i].y, z };
-		points[2 * i + 1] = { right[i].x, right[i].y, z };
+	valarray<Point3f> points{left.size() + right.size()};
+	for (int i = 0; i < left.size(); ++i) {
+		points[2 * i + 0] = {left[i].x, left[i].y, z};
+		points[2 * i + 1] = {right[i].x, right[i].y, z};
 	}
 	return points;
 }
 
 valarray<Point3f> GraphView::render_ray(const Point &from, const Point &to, const FromTo &ray, float z) const
 {
-	Point left_beg = { from.x + cell_width, from.y + ray.from_input * cell_height };
-	Point left_end = { to.x,to.y + ray.from_output * cell_height };
+	Point left_beg = {from.x + cell_width, from.y + ray.from_input * cell_height};
+	Point left_end = {to.x, to.y + ray.from_output * cell_height};
 
 	auto left = bezier(left_beg, left_end, bezier_interp_steps);
 
-	Point right_beg = { from.x + cell_width,from.y + ray.to_input * cell_height };
-	Point right_end = { to.x,to.y + ray.to_output * cell_height };
+	Point right_beg = {from.x + cell_width, from.y + ray.to_input * cell_height};
+	Point right_end = {to.x, to.y + ray.to_output * cell_height};
 
 	auto right = bezier(right_beg, right_end, bezier_interp_steps);
 
 	return zip(left, right, z);
 }
 
-RenderedField GraphView::render_field(
-	const Field &field,
-	const Point &from, const Point &to,
-	float dz, float *pz) const
+RenderedField GraphView::render_field(const Field &field, const Point &from, const Point &to, float dz, float *pz) const
 {
 	FromTo one;
 	one.from_input = field.field.front().from_input;
@@ -499,18 +481,18 @@ RenderedField GraphView::render_field(
 	*pz += dz;
 	indexes.push_back((GLsizei)points.size());
 
-	for (auto &ray : field.field)
-	{
+	for (auto &ray : field.field) {
 		auto r = render_ray(from, to, ray, *pz);
 		*pz += dz;
 		points.insert(points.end(), begin(r), end(r));
 		indexes.push_back((GLsizei)points.size());
 	}
 
-	return { points, indexes };
+	return {points, indexes};
 }
 
-RenderedField GraphView::render_skipped_field(const Field &field, const Point &from, const Point &to, const Point &mid_beg, const Point &mid_end, float dz, float *pz) const
+RenderedField GraphView::render_skipped_field(const Field &field, const Point &from, const Point &to,
+                                              const Point &mid_beg, const Point &mid_end, float dz, float *pz) const
 {
 	auto [points_a, indexes_a] = render_field(field, from, mid_beg, dz, pz);
 	auto [points_b, indexes_b] = render_field(field, mid_end, to, dz, pz);
@@ -518,20 +500,17 @@ RenderedField GraphView::render_skipped_field(const Field &field, const Point &f
 	vector<Point3f> points;
 	vector<GLsizei> indexes;
 
-	return { points, indexes };
+	return {points, indexes};
 }
 
 pair<string, int> GraphView::hit_test(double x, double y) const
 {
-	for (auto &base_point : base_points)
-	{
+	for (auto &base_point : base_points) {
 		BasePoint b = base_point.second;
-		if (b.base.x <= x && x < b.base.x + cell_width &&
-			b.base.y <= y && y < b.base.y + b.n * cell_height)
-		{
+		if (b.base.x <= x && x < b.base.x + cell_width && b.base.y <= y && y < b.base.y + b.n * cell_height) {
 			int idx = int((y - b.base.y) / cell_height);
-			return { base_point.first, idx };
+			return {base_point.first, idx};
 		}
 	}
-	return { "", -1 };
+	return {"", -1};
 }
