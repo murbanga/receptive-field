@@ -12,40 +12,6 @@
 
 using namespace std;
 
-Range find_input(const std::vector<FromTo> &field, int beg, int end)
-{
-	Range range = {-1, -1};
-
-	for (size_t i = 0; i < field.size(); ++i) {
-		if (field[i].from_output <= beg && beg < field[i].to_output)
-			range.beg = (range.beg > -1 ? min(range.beg, field[i].from_input) : field[i].from_input);
-
-		if (field[i].from_output < end && end <= field[i].to_output)
-			range.end = (range.end > -1 ? max(range.end, field[i].to_input) : field[i].to_input);
-	}
-
-	assert(range.beg <= range.end);
-
-	return range;
-}
-
-Range find_output(const std::vector<FromTo> &field, int beg, int end)
-{
-	Range range = {-1, -1};
-
-	for (size_t i = 0; i < field.size(); ++i) {
-		if (field[i].from_input <= beg && beg < field[i].to_input)
-			range.beg = (range.beg > -1 ? min(range.beg, field[i].from_output) : field[i].from_output);
-
-		if (field[i].from_input < end && end <= field[i].to_input)
-			range.end = (range.end > -1 ? max(range.end, field[i].to_output) : field[i].to_output);
-	}
-
-	assert(range.beg <= range.end);
-
-	return range;
-}
-
 bool operator==(const Tensor &a, const Tensor &b)
 {
 	return a.n == b.n && a.channel == b.channel && a.width == b.width && a.height == b.height;
@@ -89,7 +55,7 @@ Tensor value_info(const onnx::ValueInfoProto proto)
 	Tensor tensor = {1, 1, 1, 1};
 
 	if (!shape.dim_size()) {
-		printf("warning: strange weird value '%s' of size 0\n", proto.name().c_str());
+		printf("warning: weird value '%s' of size 0\n", proto.name().c_str());
 		return {0, 0, 0, 0};
 	}
 
@@ -103,6 +69,15 @@ Tensor value_info(const onnx::ValueInfoProto proto)
 
 	assert(shape.dim_size() <= 4);
 	return tensor;
+}
+
+template <typename Iterable> string inputs_to_str(const Iterable inputs)
+{
+	string s;
+	for (auto i : inputs) {
+		s += i + ", ";
+	}
+	return s;
 }
 
 template <typename Iterable> vector<string> filter_inputs(OpType op_type, const Iterable inputs)
@@ -121,8 +96,11 @@ template <typename Iterable> vector<string> filter_inputs(OpType op_type, const 
 	case OpType::GlobalAveragePool:
 		return {inputs[0]};
 
+	case OpType::Gather:
+		return {inputs[0], inputs[1]};
+
 	default:
-		printf("unsupported op %s\n", str_from_op_type(op_type));
+		printf("unsupported op %s (%s)\n", str_from_op_type(op_type), inputs_to_str(inputs).c_str());
 	}
 
 	return {};
@@ -286,7 +264,7 @@ bool is_all_present(const set<string> &visited, const vector<string> &inputs)
 
 int Graph::walk_forward(const string &beg, Callback f) const
 {
-	if (forw.find(beg) != forw.end()) {
+	if (forw.find(beg) == forw.end()) {
 		printf("error: node '%s' not found\n", beg.c_str());
 		assert(false);
 	}
@@ -307,7 +285,7 @@ int Graph::walk_forward(const string &beg, Callback f) const
 			auto it_child = forw.find(child);
 			if (it_child != forw.end()) {
 				for (auto &n : it_child->second) {
-					if (is_all_present(visited, nodes.at(n).inputs))
+					//if (is_all_present(visited, nodes.at(n).inputs))
 						next.insert(n);
 				}
 			}
@@ -319,11 +297,13 @@ int Graph::walk_forward(const string &beg, Callback f) const
 	return 0;
 }
 
+#if 0 // UNUSED
 int Graph::walk_backward(const std::string &beg, Callback f) const
 {
 	assert(back.find(beg) != back.end());
 	return 0;
 }
+#endif
 
 vector<Field> Graph::receptive_field(const string &name, Direction dir) const
 {

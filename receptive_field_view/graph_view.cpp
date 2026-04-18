@@ -8,6 +8,46 @@
 
 using namespace std;
 
+struct Range
+{
+	int beg;
+	int end;
+};
+
+Range find_input(const std::vector<FromTo> &field, int beg, int end)
+{
+	Range range = { -1, -1 };
+
+	for (size_t i = 0; i < field.size(); ++i) {
+		if (field[i].from_output <= beg && beg < field[i].to_output)
+			range.beg = (range.beg > -1 ? min(range.beg, field[i].from_input) : field[i].from_input);
+
+		if (field[i].from_output < end && end <= field[i].to_output)
+			range.end = (range.end > -1 ? max(range.end, field[i].to_input) : field[i].to_input);
+	}
+
+	assert(range.beg <= range.end);
+
+	return range;
+}
+
+Range find_output(const std::vector<FromTo> &field, int beg, int end)
+{
+	Range range = { -1, -1 };
+
+	for (size_t i = 0; i < field.size(); ++i) {
+		if (field[i].from_input <= beg && beg < field[i].to_input)
+			range.beg = (range.beg > -1 ? min(range.beg, field[i].from_output) : field[i].from_output);
+
+		if (field[i].from_input < end && end <= field[i].to_input)
+			range.end = (range.end > -1 ? max(range.end, field[i].to_output) : field[i].to_output);
+	}
+
+	assert(range.beg <= range.end);
+
+	return range;
+}
+
 template <> void VertexArray::update<Point>(const Point *points, size_t npoints)
 {
 	glBindVertexArray(arr);

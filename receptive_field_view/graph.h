@@ -36,7 +36,7 @@
 	f(Neg)		\
 	f(Slice)	\
 	f(Erf)		\
-	f(Where)	\
+	f(Where)
 
 // clang-format on
 
@@ -80,15 +80,6 @@ struct FromTo
 	int to_output;
 };
 
-struct Range
-{
-	int beg;
-	int end;
-};
-
-Range find_input(const std::vector<FromTo> &field, int beg, int end);
-Range find_output(const std::vector<FromTo> &field, int beg, int end);
-
 struct Field
 {
 	std::string input;
@@ -111,16 +102,18 @@ class Graph
 
 	std::map<std::string, Node> nodes;
 	std::map<std::string, Tensor> tensors;
+	std::set<std::string> inputs;
 	std::map<std::string, Value> values;
 	std::map<std::string, std::vector<std::string>> forw;
 	std::map<std::string, std::vector<std::string>> back;
 
 	static Graph load(const char *filename);
 	int walk_forward(const std::string &beg, Callback f) const;
-	int walk_backward(const std::string &beg, Callback f) const;
+	// UNUSER int walk_backward(const std::string &beg, Callback f) const;
 
 	std::vector<Field> receptive_field(const std::string &node, Direction dir) const;
 	int length(const std::string &name, Direction dir) const;
+	bool empty() const { return nodes.empty(); }
 
 	private:
 	std::vector<Field> identity_field(const Node &node, Direction dir, int input_idx = 0) const;

@@ -346,10 +346,14 @@ void draw_ui(GraphView *view)
 int main(int argc, char **argv)
 {
 	std::string filename;
+	std::string start_node;
 
 	for (int i = 1; i < argc; ++i) {
 		if (!strcmp(argv[i], "-onnx")) {
 			filename = argv[++i];
+		}
+		if (!strcmp(argv[i], "-i")) {
+			start_node = argv[++i];
 		}
 	}
 
@@ -384,7 +388,8 @@ int main(int argc, char **argv)
 	io.FontDefault = io.Fonts->AddFontDefault();
 
 	auto graph = Graph::load(filename.c_str());
-	GraphView graph_view(&graph, "left_rgb/image");
+	if (graph.empty())return -1;
+	GraphView graph_view(&graph, start_node);
 
 	glfwSetWindowUserPointer(window, &graph_view);
 
