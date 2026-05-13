@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include <set>
+#include <string>
 
 // clang-format off
 #define OP_TYPE_ENUM(f) \

@@ -8,6 +8,7 @@
 #include "../onnx/onnx/shape_inference/implementation.h"
 #pragma warning(pop)
 
+#include <cmath>
 #include "graph.h"
 
 using namespace std;
