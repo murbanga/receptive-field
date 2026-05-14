@@ -68,23 +68,27 @@ void Font::init()
 	auto *window = glfwGetCurrentContext();
 	auto win32_window = glfwGetWin32Window(window);
 
-	if (!metrics)
-		metrics = new GLYPHMETRICSFLOAT[256];
-
 	HDC hdc = GetDC(win32_window);
 
 	HFONT font = CreateFontA(10, 0, 0, 0, FW_NORMAL, false, false, false, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
 	                         CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, family.c_str());
 
 	if (font) {
+		if (!metrics)
+			metrics = new GLYPHMETRICSFLOAT[256];
+
 		HFONT prev = (HFONT)SelectObject(hdc, font);
 		if (!wglUseFontOutlines(hdc, 0, 255, starting_display_list, 0.0f, 0.01f, WGL_FONT_LINES, metrics)) {
 			printf("fail to initialize font '%s' with error %08x\n", family.c_str(), GetLastError());
+			delete[] metrics;
+			metrics = nullptr;
 		}
 
 		SelectObject(hdc, prev);
 		DeleteObject(font);
 	}
+
+	ReleaseDC(hdc);
 #else
 	// FIXME
 #endif

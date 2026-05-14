@@ -16,7 +16,7 @@ struct Range
 
 Range find_input(const std::vector<FromTo> &field, int beg, int end)
 {
-	Range range = { -1, -1 };
+	Range range = {-1, -1};
 
 	for (size_t i = 0; i < field.size(); ++i) {
 		if (field[i].from_output <= beg && beg < field[i].to_output)
@@ -33,7 +33,7 @@ Range find_input(const std::vector<FromTo> &field, int beg, int end)
 
 Range find_output(const std::vector<FromTo> &field, int beg, int end)
 {
-	Range range = { -1, -1 };
+	Range range = {-1, -1};
 
 	for (size_t i = 0; i < field.size(); ++i) {
 		if (field[i].from_input <= beg && beg < field[i].to_input)
@@ -525,7 +525,7 @@ RenderedField GraphView::render_field(const Field &field, const Point &from, con
 		auto r = render_ray(from, to, ray, *pz);
 		*pz += dz;
 		points.insert(points.end(), begin(r), end(r));
-		indexes.push_back((GLsizei)points.size());
+		indexes.push_back((GLsizei)r.size());
 	}
 
 	return {points, indexes};

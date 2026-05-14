@@ -388,31 +388,34 @@ int main(int argc, char **argv)
 	io.FontDefault = io.Fonts->AddFontDefault();
 
 	auto graph = Graph::load(filename.c_str());
-	if (graph.empty())return -1;
-	GraphView graph_view(&graph, start_node);
+	if (graph.empty()) {
+		printf("failed to load graph \"%s\"\n", filename.c_str());
+	} else {
+		GraphView graph_view(&graph, start_node);
 
-	glfwSetWindowUserPointer(window, &graph_view);
+		glfwSetWindowUserPointer(window, &graph_view);
 
-	FpsCounter counter(10);
+		FpsCounter counter(10);
 
-	while (!glfwWindowShouldClose(window)) {
-		glfwPollEvents();
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
+		while (!glfwWindowShouldClose(window)) {
+			glfwPollEvents();
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
 
-		draw_ui(&graph_view);
+			draw_ui(&graph_view);
 
-		ImGui::Render();
+			ImGui::Render();
 
-		display(window, &graph_view);
+			display(window, &graph_view);
 
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-		glfwMakeContextCurrent(window);
-		glfwSwapBuffers(window);
+			glfwMakeContextCurrent(window);
+			glfwSwapBuffers(window);
 
-		current_fps = counter.tick();
+			current_fps = counter.tick();
+		}
 	}
 
 	ImGui_ImplOpenGL3_Shutdown();
