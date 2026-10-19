@@ -10,6 +10,8 @@ set(ONNX_BUILD_TESTS OFF)
 #set(ONNX_USE_LITE_PROTO ON)
 #set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${CMAKE_BINARY_DIR}/protobuf/cmake/protoc.exe)
 set(GLFW_BUILD_DOCS OFF)
+set(protobuf_WITH_ZLIB OFF)
+set(protobuf_BUILD_TESTS OFF)
 
 add_definitions(-Dprotobuf_BUILD_TESTS=OFF)
 add_definitions(-DONNX_ML=1)

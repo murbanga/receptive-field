@@ -88,7 +88,7 @@ void Font::init()
 		DeleteObject(font);
 	}
 
-	ReleaseDC(hdc);
+	ReleaseDC(win32_window, hdc);
 #else
 	// FIXME
 #endif

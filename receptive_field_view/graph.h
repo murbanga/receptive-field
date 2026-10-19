@@ -43,7 +43,7 @@
 
 #define DECL(x) x,
 
-enum class OpType
+enum OpType
 {
 	OP_TYPE_ENUM(DECL)
 };
