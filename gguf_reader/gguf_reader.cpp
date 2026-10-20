@@ -4,6 +4,8 @@
 #include <vector>
 #include <assert.h>
 
+using namespace std;
+
 template <typename T> class destroyer
 {
 	public:
@@ -54,13 +56,84 @@ enum gguf_metadata_value_type : uint32_t
 	GGUF_METADATA_VALUE_TYPE_FLOAT64 = 12,
 };
 
-std::vector<char> read_string(FILE *f)
+std::string read_string(FILE *f)
 {
 	uint64_t size;
 	fread(&size, sizeof(size), 1, f);
-	std::vector<char> v(size);
-	fread(v.data(), size, 1, f);
-	return v;
+	char buf[1024];
+	assert(sizeof(buf) > size);
+	uint64_t size_to_read = min(size, sizeof(buf) - 1);
+	fread(buf, size_to_read, 1, f);
+	buf[size_to_read] = 0;
+	return buf;
+}
+
+std::vector<gguf_value_type> read_element(FILE *f, gguf_metadata_value_type type)
+{
+	switch (type) {
+	case GGUF_METADATA_VALUE_TYPE_UINT8: {
+		assert(false);
+	}
+	case GGUF_METADATA_VALUE_TYPE_INT8: {
+		assert(false);
+	}
+	case GGUF_METADATA_VALUE_TYPE_UINT16: {
+		assert(false);
+	}
+	case GGUF_METADATA_VALUE_TYPE_INT16: {
+		assert(false);
+	}
+	case GGUF_METADATA_VALUE_TYPE_UINT32: {
+		uint32_t val;
+		fread(&val, sizeof(val), 1, f);
+		return {(uint64_t)val};
+	}
+	case GGUF_METADATA_VALUE_TYPE_INT32: {
+		int32_t val;
+		fread(&val, sizeof(val), 1, f);
+		return { (int64_t)val };
+	}
+	case GGUF_METADATA_VALUE_TYPE_FLOAT32: {
+		float val;
+		fread(&val, sizeof(val), 1, f);
+		return { (double)val };
+	}
+	case GGUF_METADATA_VALUE_TYPE_BOOL: {
+		uint8_t val;
+		fread(&val, sizeof(val), 1, f);
+		return { (bool)val };
+	}
+	case GGUF_METADATA_VALUE_TYPE_STRING: {
+		return {read_string(f)};
+	}
+
+	case GGUF_METADATA_VALUE_TYPE_UINT64: {
+		assert(false);
+	}
+	case GGUF_METADATA_VALUE_TYPE_INT64: {
+		assert(false);
+	}
+	case GGUF_METADATA_VALUE_TYPE_FLOAT64: {
+		assert(false);
+	}
+	case GGUF_METADATA_VALUE_TYPE_ARRAY: {
+		gguf_metadata_value_type element_type;
+		fread(&element_type, sizeof(element_type), 1, f);
+		assert(element_type != GGUF_METADATA_VALUE_TYPE_ARRAY);
+
+		uint64_t len;
+		fread(&len, sizeof(len), 1, f);
+
+		vector<gguf_value_type> v;
+		for (uint64_t i = 0; i < len; ++i) {
+			v.push_back(read_element(f, element_type)[0]);
+		}
+		return v;
+	}
+	default:
+		printf("error: unsupported metadata type %d\n", type);
+		assert(false);
+	}
 }
 
 gguf read(const char *filename)
@@ -98,71 +171,8 @@ gguf read(const char *filename)
 		gguf_metadata_value_type type;
 		fread(&type, sizeof(type), 1, f);
 
-		switch (type) {
-		case GGUF_METADATA_VALUE_TYPE_UINT8:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_INT8:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_UINT16:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_INT16:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_UINT32:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_INT32:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_FLOAT32:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_BOOL:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_STRING:
-		{
-			auto val = read_string(f);
-			ggpuf.add(key, val);
-			break;
-		}
-		case GGUF_METADATA_VALUE_TYPE_ARRAY:
-		{
-			gguf_metadata_value_type element_type;
-			fread(&element_type, sizeof(element_type), 1, f);
-			uint64_t len;
-			fread(&len, sizeof(len), 1, f);
-			for (uint64_t i = 0; i < len; ++i) {
-				read_element(f, type);
-			}
-
-		}
-		case GGUF_METADATA_VALUE_TYPE_UINT64:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_INT64:
-		{
-			assert(false);
-		}
-		case GGUF_METADATA_VALUE_TYPE_FLOAT64:
-		{
-			assert(false);
-		}
-		default:
-			printf("error: unsupported metadata type %d\n", type);
-		}
+		auto val = read_element(f, type);
+		ggpuf.meta.insert({key, val});
 	}
 
 	return ggpuf;
