@@ -97,7 +97,7 @@ union gguf_metadata_value_t {
         int64_t int64;
         double float64;
         bool bool_;
-        gguf_string_t string;
+        //gguf_string_t string;
         struct {
                 // Any value type is valid, including arrays.
                 gguf_metadata_value_type type;
