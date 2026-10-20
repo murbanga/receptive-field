@@ -56,3 +56,5 @@ include_directories(
 	glfw/deps)
 
 add_subdirectory(receptive_field_view)
+
+add_subdirectory(gguf_reader)
