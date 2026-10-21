@@ -6,6 +6,19 @@
 
 using namespace std;
 
+const char *ggml_type_to_str[] = {
+    "F32",        "F16",        "Q4_0",       "Q4_1",       "Q4_2",       "Q4_3",     "Q5_0",     "Q5_1",    "Q8_0",
+    "Q8_1",       "Q2_K",       "Q3_K",       "Q4_K",       "Q5_K",       "Q6_K",     "Q8_K",     "IQ2_XXS", "IQ2_XS",
+    "IQ3_XXS",    "IQ1_S",      "IQ4_NL",     "IQ3_S",      "IQ2_S",      "IQ4_XS",   "I8",       "I16",     "I32",
+    "I64",        "F64",        "IQ1_M",      "BF16",       "Q4_0_4_4",   "Q4_0_4_8", "Q4_0_8_8", "TQ1_0",   "TQ2_0",
+    "IQ4_NL_4_4", "IQ4_NL_4_8", "IQ4_NL_8_8", "MXFP4 = 39", "COUNT = 40",
+};
+
+const char *gguf_metadata_value_type_to_str[] = {
+    "UINT8", "INT8",   "UINT16", "INT16",  "UINT32", "INT32",   "FLOAT32",
+    "BOOL",  "STRING", "ARRAY",  "UINT64", "INT64",  "FLOAT64",
+};
+
 template <typename T> class destroyer
 {
 	public:
@@ -21,41 +34,6 @@ template <typename T> class destroyer
 	T *thing_to_destroy;
 };
 
-enum gguf_metadata_value_type : uint32_t
-{
-	// The value is a 8-bit unsigned integer.
-	GGUF_METADATA_VALUE_TYPE_UINT8 = 0,
-	// The value is a 8-bit signed integer.
-	GGUF_METADATA_VALUE_TYPE_INT8 = 1,
-	// The value is a 16-bit unsigned little-endian integer.
-	GGUF_METADATA_VALUE_TYPE_UINT16 = 2,
-	// The value is a 16-bit signed little-endian integer.
-	GGUF_METADATA_VALUE_TYPE_INT16 = 3,
-	// The value is a 32-bit unsigned little-endian integer.
-	GGUF_METADATA_VALUE_TYPE_UINT32 = 4,
-	// The value is a 32-bit signed little-endian integer.
-	GGUF_METADATA_VALUE_TYPE_INT32 = 5,
-	// The value is a 32-bit IEEE754 floating point number.
-	GGUF_METADATA_VALUE_TYPE_FLOAT32 = 6,
-	// The value is a boolean.
-	// 1-byte value where 0 is false and 1 is true.
-	// Anything else is invalid, and should be treated as either the model being invalid or the reader being buggy.
-	GGUF_METADATA_VALUE_TYPE_BOOL = 7,
-	// The value is a UTF-8 non-null-terminated string, with length prepended.
-	GGUF_METADATA_VALUE_TYPE_STRING = 8,
-	// The value is an array of other values, with the length and type prepended.
-	///
-	// Arrays can be nested, and the length of the array is the number of elements in the array, not the number of
-	// bytes.
-	GGUF_METADATA_VALUE_TYPE_ARRAY = 9,
-	// The value is a 64-bit unsigned little-endian integer.
-	GGUF_METADATA_VALUE_TYPE_UINT64 = 10,
-	// The value is a 64-bit signed little-endian integer.
-	GGUF_METADATA_VALUE_TYPE_INT64 = 11,
-	// The value is a 64-bit IEEE754 floating point number.
-	GGUF_METADATA_VALUE_TYPE_FLOAT64 = 12,
-};
-
 std::string read_string(FILE *f)
 {
 	uint64_t size;
@@ -68,7 +46,7 @@ std::string read_string(FILE *f)
 	return buf;
 }
 
-std::vector<gguf_value_type> read_element(FILE *f, gguf_metadata_value_type type)
+metadata_entry read_element(FILE *f, gguf_metadata_value_type type)
 {
 	switch (type) {
 	case GGUF_METADATA_VALUE_TYPE_UINT8: {
@@ -86,25 +64,25 @@ std::vector<gguf_value_type> read_element(FILE *f, gguf_metadata_value_type type
 	case GGUF_METADATA_VALUE_TYPE_UINT32: {
 		uint32_t val;
 		fread(&val, sizeof(val), 1, f);
-		return {(uint64_t)val};
+		return {{(uint64_t)val}, type};
 	}
 	case GGUF_METADATA_VALUE_TYPE_INT32: {
 		int32_t val;
 		fread(&val, sizeof(val), 1, f);
-		return { (int64_t)val };
+		return {{(int64_t)val}, type};
 	}
 	case GGUF_METADATA_VALUE_TYPE_FLOAT32: {
 		float val;
 		fread(&val, sizeof(val), 1, f);
-		return { (double)val };
+		return {{(double)val}, type};
 	}
 	case GGUF_METADATA_VALUE_TYPE_BOOL: {
 		uint8_t val;
 		fread(&val, sizeof(val), 1, f);
-		return { (bool)val };
+		return {{(bool)val}, type};
 	}
 	case GGUF_METADATA_VALUE_TYPE_STRING: {
-		return {read_string(f)};
+		return {{read_string(f)}, type};
 	}
 
 	case GGUF_METADATA_VALUE_TYPE_UINT64: {
@@ -119,19 +97,46 @@ std::vector<gguf_value_type> read_element(FILE *f, gguf_metadata_value_type type
 	case GGUF_METADATA_VALUE_TYPE_ARRAY: {
 		gguf_metadata_value_type element_type;
 		fread(&element_type, sizeof(element_type), 1, f);
+
 		assert(element_type != GGUF_METADATA_VALUE_TYPE_ARRAY);
 
 		uint64_t len;
 		fread(&len, sizeof(len), 1, f);
 
 		vector<gguf_value_type> v;
+		v.reserve(len);
 		for (uint64_t i = 0; i < len; ++i) {
-			v.push_back(read_element(f, element_type)[0]);
+			v.push_back(read_element(f, element_type).value[0]);
 		}
-		return v;
+		return {v, element_type};
 	}
 	default:
 		printf("error: unsupported metadata type %d\n", type);
+		assert(false);
+	}
+}
+
+void print(const gguf_value_type &val, gguf_metadata_value_type type)
+{
+	printf("%s ", gguf_metadata_value_type_to_str[type]);
+
+	switch (val.index()) {
+	case 0:
+		printf("%s", get<0>(val).c_str());
+		break;
+	case 1:
+		printf("%llu", get<1>(val));
+		break;
+	case 2:
+		printf("%lld", get<2>(val));
+		break;
+	case 3:
+		printf("%f", get<3>(val));
+		break;
+	case 4:
+		printf("%s", get<4>(val) ? "true" : "false");
+		break;
+	default:
 		assert(false);
 	}
 }
@@ -159,12 +164,14 @@ gguf read(const char *filename)
 
 	uint64_t ntensors;
 	size = fread(&ntensors, sizeof(ntensors), 1, f);
+	printf("tensors %llu\n", ntensors);
 
 	uint64_t nmetadata;
 	size = fread(&nmetadata, sizeof(nmetadata), 1, f);
 
 	gguf ggpuf;
 
+	printf("metadata:\n");
 	for (uint64_t i = 0; i < nmetadata; ++i) {
 		auto key = read_string(f);
 
@@ -173,6 +180,38 @@ gguf read(const char *filename)
 
 		auto val = read_element(f, type);
 		ggpuf.meta.insert({key, val});
+
+		printf("\t%s:", key.c_str());
+		if (val.value.size() > 1)
+			printf("%s[%zu]\n", gguf_metadata_value_type_to_str[val.type], val.value.size());
+		else {
+			print(val.value[0], val.type);
+			printf("\n");
+		}
+	}
+
+	printf("tensors:\n");
+	for (uint64_t i = 0; i < ntensors; ++i) {
+		auto name = read_string(f);
+
+		uint32_t ndims;
+		fread(&ndims, sizeof(ndims), 1, f);
+
+		std::vector<uint64_t> dims;
+
+		for (uint32_t d = 0; d < ndims; ++d) {
+			uint64_t dim;
+			fread(&dim, sizeof(dim), 1, f);
+			dims.push_back(dim);
+		}
+
+		ggml_type type;
+		fread(&type, sizeof(type), 1, f);
+
+		uint64_t offset;
+		fread(&offset, sizeof(offset), 1, f);
+
+		printf("\"%s\" %dD %s %016x\n", name.c_str(), ndims, ggml_type_to_str[type],offset);
 	}
 
 	return ggpuf;
